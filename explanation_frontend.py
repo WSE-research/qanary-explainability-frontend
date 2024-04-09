@@ -79,11 +79,10 @@ gptModels = gptModels_dic.keys()
 def execute_qanary_pipeline(question, components):
     component_list = "" 
     for component in components['components']:
-        component_list += "&componentlist%5B%5D=" + component
+        component_list += "&componentlist[]=" + component
     print(component_list)
 
     custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
-    print(custom_pipeline_url)
 
     response = requests.post(custom_pipeline_url, {})
     logging.info("Qanary pipeline request response: " + str(response.status_code))
@@ -95,7 +94,9 @@ def request_explanations(question, components):
     # First: Execute Qanary pipeline
     qa_process_information = execute_qanary_pipeline(question, components)
     logging.info("QA-Process information: " + str(qa_process_information))
-    print("QA Process: " + str(qa_process_information))
+    print("QA Process: " + str(qa_process_information.json()))
+
+    # Implement the explanation
 
 
 st.header('Qanary Explanation Demo')
