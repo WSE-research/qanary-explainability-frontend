@@ -5,7 +5,9 @@ import json
 
 # Qanary components
 NED_DBPEDIA = "NED-DBpediaSpotlight"
+KG2KG = "KG2KG-TranslateAnnotationsOfInstanceToDBpediaOrWikidata"
 NED_DANDELION = "DandelionNED"
+QB_BIRTHDATA = "QB-BirthDataWikidata"
 QB_SINA = "SINA"
 QB_QANSWER = "QAnswerQueryBuilderAndQueryCandidateFetcher"
 QB_PLATYPUS = "PlatypusQueryBuilder"
@@ -18,7 +20,7 @@ QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"
 # The config is relevant for the pipeline execution, as it selects the used components
 explanation_configurations_dict = {
     "Configuration 1": {
-        "components": [NED_DBPEDIA,QB_SINA,QE_SPARQLEXECUTER]
+        "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER]
     },
     "Configuration 2": {
 
@@ -94,9 +96,11 @@ def request_explanations(question, components):
     # First: Execute Qanary pipeline
     qa_process_information = execute_qanary_pipeline(question, components)
     logging.info("QA-Process information: " + str(qa_process_information))
-    print("QA Process: " + str(qa_process_information.json()))
+    print("QA Process: " + str(qa_process_information.json()["outGraph"]))
 
     # Implement the explanation
+
+
 
 
 st.header('Qanary Explanation Demo')
