@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import logging
 import json
+from rdflib import Graph, Namespace
 
 # Qanary components
 NED_DBPEDIA = "NED-DBpediaSpotlight"
@@ -16,7 +17,21 @@ QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
 
 CONFIG_ONE = ""
 QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"
-QANARY_EXPLANATION_SERVICE_URL = "http://demos.swe.htwk-leipzig.de:40190/explanations"
+QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000/explanations"
+
+
+SPARQL_SELECT_EXPLANATION_QUERY = """
+    PREFIX explanations: <urn:qanary:explanations#>
+    CONSTRUCT {
+        ?subject explanations:hasExplanationForCreatedData ?object .
+    }
+    WHERE {
+        ?subject explanations:hasExplanationForCreatedData ?object .
+        FILTER (LANG(?object) = "en")
+    }
+"""
+
+explanationsNs = Namespace("urn:qanary:explanations#")
 
 # The config is relevant for the pipeline execution, as it selects the used components
 explanation_configurations_dict = {
@@ -102,16 +117,21 @@ def request_explanations(question, components):
     # Implement the explanation
     explanations = {}
     for component in components['components']:
-        custom_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/{graph}/urn:qanary:{component}"
-        response = requests.get(custom_explanation_url, {})
-        component_rulebased_explanation = response.text
-        print("The response is: " + component_rulebased_explanation)  # logger
-        component_generative_explanation = get_gpt_explanation()
-        explanations[component] = {
-            "rulebased": component_rulebased_explanation,
-            "generative": component_generative_explanation
-        }
+        try:
+            g = Graph()
+            custom_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/{graph}/urn:qanary:{component}" # Prob. make explanations available through triplestore
+            response = requests.get(custom_explanation_url, {})
+            g.parse(data=response.text)
+            component_rulebased_explanation = list(g[:explanationsNs.hasExplanationForCreatedData])
+            component_generative_explanation = get_gpt_explanation()
+            explanations[component] = {
+                "rulebased": next(triple[1] for triple in component_rulebased_explanation if triple[1].language == 'en').value, # Probably establish a API to directly get the explanation, or, use a SELECT query here // move processing to backend
+                "generative": component_generative_explanation
+            }
+        except Exception as error:
+            print("An error occured while fetching the explanation for the component" + component + " with error: ", error)
 
+    print(explanations)
     return explanations
 
 def get_gpt_explanation():
