@@ -15,7 +15,7 @@ QB_PLATYPUS = "PlatypusQueryBuilder"
 QE_SPARQLEXECUTER = "QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia"
 QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
 
-CONFIG_ONE = ""
+CONFIG_ONE = "" # ?
 QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"
 QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000/explanations"
 
@@ -91,17 +91,17 @@ gptModels_dic = {
 }
 
 gptModels = gptModels_dic.keys()
+st.session_state.currentQaProcessExplanations = {}
+st.session_state.componentsSelection = ()
 
+###### FUNCTIONS 
 
-########## Functions:
 def execute_qanary_pipeline(question, components):
     component_list = ""
     for component in components['components']:
         component_list += "&componentlist[]=" + component
-    print(component_list)
 
     custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
-
     response = requests.post(custom_pipeline_url, {})
     logging.info("Qanary pipeline request response: " + str(response.status_code))
 
@@ -115,29 +115,40 @@ def request_explanations(question, components):
     graph = qa_process_information.json()["outGraph"]
 
     # Implement the explanation
-    explanations = {}
+    currentQaProcessExplanations = {}
     for component in components['components']:
         try:
             g = Graph()
             custom_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/{graph}/urn:qanary:{component}" # Prob. make explanations available through triplestore
             response = requests.get(custom_explanation_url, {})
             g.parse(data=response.text)
+            print(response.text)
             component_rulebased_explanation = list(g[:explanationsNs.hasExplanationForCreatedData])
             component_generative_explanation = get_gpt_explanation()
-            explanations[component] = {
+            currentQaProcessExplanations[component] = {
                 "rulebased": next(triple[1] for triple in component_rulebased_explanation if triple[1].language == 'en').value, # Probably establish a API to directly get the explanation, or, use a SELECT query here // move processing to backend
                 "generative": component_generative_explanation
             }
         except Exception as error:
             print("An error occured while fetching the explanation for the component" + component + " with error: ", error)
 
-    print(explanations)
-    return explanations
+    st.session_state.currentQaProcessExplanations = currentQaProcessExplanations
+    st.session_state.componentsSelection = currentQaProcessExplanations.keys()
 
 def get_gpt_explanation():
-
     return ""
 
+def render_dict(dict):
+    for key, value in dict.items():
+       # st.write(f"**{key}**: {value.rulebased}")
+
+            if hasattr(value,'rulebased'):
+                st.write(f"**{key}**: {value.rulebased}")
+
+            else: 
+                st.write(f"**{key}**: {value}")
+       # with st.container():
+       #     st.write()
 
 st.header('Qanary Explanation Demo')
 
@@ -159,8 +170,19 @@ with header_column:
 question, submit_question = st.columns([5, 1])
 
 with question:
-    text_question = st.text_input('Your question', 'Enter your question ...', label_visibility="hidden")
+    text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="hidden")
 with submit_question:
     st.button('Send', on_click=request_explanations(text_question, selected_configuration))  # Pass components
 
+st.divider()
+
 # Implement details for Configuration and show the current selection's details
+
+components = st.selectbox(
+    'Select component', st.session_state["componentsSelection"]
+)
+
+st.subheader("Template based explanation:", divider="gray")
+st.json(st.session_state["currentQaProcessExplanations"][components]) # Display differently
+st.subheader("Generative generated explanation:", divider="gray")
+st.write(st.session_state["currentQaProcessExplanations"][components])
