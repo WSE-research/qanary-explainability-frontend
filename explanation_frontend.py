@@ -170,7 +170,7 @@ with header_column:
 question, submit_question = st.columns([5, 1])
 
 with question:
-    text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="hidden")
+    text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
 with submit_question:
     st.button('Send', on_click=request_explanations(text_question, selected_configuration))  # Pass components
 
@@ -183,6 +183,6 @@ components = st.selectbox(
 )
 
 st.subheader("Template based explanation:", divider="gray")
-st.json(st.session_state["currentQaProcessExplanations"][components]) # Display differently
+st.text_area("Template based explanation", st.session_state["currentQaProcessExplanations"][components]["rulebased"], label_visibility="collapsed") # Display differently
 st.subheader("Generative generated explanation:", divider="gray")
-st.write(st.session_state["currentQaProcessExplanations"][components])
+st.text_area("Generative generated explanation", st.session_state["currentQaProcessExplanations"][components]["generative"], label_visibility="collapsed")
