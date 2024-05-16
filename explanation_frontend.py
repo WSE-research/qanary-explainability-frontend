@@ -1,9 +1,11 @@
 import streamlit as st
+from streamlit.components.v1 import html
 import requests
 import logging
 import json
 from rdflib import Namespace
-import time
+from util import include_css
+from code_editor import code_editor
 
 # Qanary components
 NED_DBPEDIA = {
@@ -36,16 +38,17 @@ QB_PLATYPUS = {
 }
 QE_SPARQLEXECUTER = {
     "componentName":"QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia",
-    "componentMainType":"AnnotationOfAnswerJSON"
+    "componentMainType":"AnnotationOfAnswerJson"
 }
 QBE_QANSWER = {
     "componentName":"QAnswerQueryBuilderAndExecutor",
-    "componentMainType":"AnnotationOfAnswerJSON" # actually this component have several
+    "componentMainType":"AnnotationOfAnswerJson" # actually this component have several
 }
 
 CONFIG_ONE = "" # ?
 QANARY_PIPELINE_URL = "http://localhost:8080"
 QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000"
+GITHUB_REPO = ""
 
 
 SPARQL_SELECT_EXPLANATION_QUERY = """
@@ -64,7 +67,8 @@ explanationsNs = Namespace("urn:qanary:explanations#")
 # The config is relevant for the pipeline execution, as it selects the used components
 explanation_configurations_dict = {
     "Configuration 1": {
-        "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER]
+        "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER],
+        "helpText": "abc"
     },
     "Configuration 2": {
         "components": []
@@ -82,9 +86,9 @@ explanation_configurations_dict = {
 explanation_configurations = explanation_configurations_dict.keys()
 
 GPT3_5_TURBO = "GPT-3.5 (from OpenAI)"
-GPT3_5_MODEL = "gpt-3.5-turbo"
+GPT3_5_MODEL = "GPT_3_5"
 GPT4 = "GPT-4 (from OpenAI)"
-GPT4_MODEL = "gpt-4-XXX"
+GPT4_MODEL = "GPT_4"
 MODEL_KEY = "model"
 SHOTS_KEY = "shots"
 SEPARATOR = """, shots: """
@@ -121,10 +125,10 @@ gptModels_dic = {
 gptModels = gptModels_dic.keys()
 st.session_state.currentQaProcessExplanations = {}
 st.session_state.componentsSelection = ()
-st.session_state.pipelineFinished = False
 
 ###### FUNCTIONS 
 
+@st.cache_data
 def execute_qanary_pipeline(question, components):
     component_list = ""
     for component in components['components']:
@@ -136,7 +140,8 @@ def execute_qanary_pipeline(question, components):
 
     return response
 
-def input_data_explanation(graph, json):
+@st.cache_data
+def input_data_explanation(json):
     input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata"
     response = requests.post(input_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
     return response.text
@@ -147,16 +152,15 @@ def convert_components_to_request_json_array(components):
         json.append(component)
     return json
 
-def output_data_explanation(graph, json):
+@st.cache_data
+def output_data_explanation(json):
     output_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/outputdata"
     return requests.post(output_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"}).text
 
-
-def request_explanations(question, components):
-    # First: Execute Qanary pipeline
-    qa_process_information = execute_qanary_pipeline(question, components)
+def request_explanations(question, components, gptModel):
+    qa_process_information = execute_qanary_pipeline(question, components).json()
     logging.info("QA-Process information: " + str(qa_process_information))
-    graph = qa_process_information.json()["outGraph"]
+    graph = qa_process_information["outGraph"]
 
     json_data = json.dumps({
     "graphUri": graph,
@@ -166,35 +170,45 @@ def request_explanations(question, components):
         "qanaryComponents": components['components']
     }})
 
-    #input_data_explanations = json.loads(input_data_explanation(graph,json_data))
-    #output_data_explanations = output_data_explanations = output_data_explanation(graph,json_data)["explanationItems"]
+    input_data_explanations = json.loads(input_data_explanation(json_data))
+    output_data_explanations = json.loads(output_data_explanation(json_data))
 
-    currentQaProcessExplanations = {}
+    currentQaProcessExplanations = {
+        "components": {},
+         "meta_information": {
+            "graphUri": graph,
+            "questionUri": qa_process_information["question"]
+         }
+    }
 
     for component in components['components']:
         compName = component["componentName"]
-        currentQaProcessExplanations[compName] = {
-            "meta_information": {
-                # add Meta information required for feedback
-            },
+        currentQaProcessExplanations["components"][compName] = {
             "input_data": {
-                "rulebased": "PlaceholderRulebased", # input_data_explanations["explanationItems"][compName]["templatebased"],
-                "generative": "PlaceholderGenerative" #input_data_explanations["explanationItems"][compName]["generative"]
+                "rulebased": input_data_explanations["explanationItems"][compName]["templatebased"],
+                "generative": input_data_explanations["explanationItems"][compName]["generative"],
+                "dataset": input_data_explanations["explanationItems"][compName]["dataset"]
             },
             "output_data": {
-                "rulebased": "PlaceholderRulebased", #output_data_explanation["explanationItems"][compName]["templatebased"],
-                "generative": "PlaceholderGenerative" #output_data_explanation["explanationItems"][compName]["generative"]
+                "rulebased": output_data_explanations["explanationItems"][compName]["templatebased"],
+                "generative": output_data_explanations["explanationItems"][compName]["generative"],
+                "dataset" : output_data_explanations["explanationItems"][compName]["dataset"]
             }
         }
 
     st.session_state.currentQaProcessExplanations = currentQaProcessExplanations
-    st.session_state.componentsSelection = currentQaProcessExplanations.keys()
+    st.session_state.componentsSelection = currentQaProcessExplanations["components"].keys()
 
 def get_gpt_explanation():
     return ""
 
 st.set_page_config(layout="wide")
+include_css(st, ["css/style_github_ribbon.css"])
 st.header('Qanary Explanation Demo')
+
+help_text = {
+    "NED-"
+}
 
 with st.sidebar:
     st.subheader("Configurations")
@@ -216,32 +230,61 @@ question, submit_question = st.columns([5, 1])
 with question:
     text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
 with submit_question:
-    st.button('Send', on_click=request_explanations(text_question, selected_configuration))  # Pass components
+    st.button('Send', on_click=request_explanations(text_question, selected_configuration, gptModel))  # Pass components
 
 st.divider()
 
-# Show explanations and add selection
 
-components = st.selectbox('Select component', st.session_state["componentsSelection"])
+containerPipelineAndComponentsRadio = st.container(border=False) # TODO:
+#containerPipelineAndComponentsRadio.write(f"Qanary pipeline information:   Graph: {st.session_state.currentQaProcessExplanations['meta_information']['graphUri']} | Question ID:  | SPARQL endpoint: ")
+selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=True, index=0)
 
-st.header("Template based explanations", divider="gray")
-template_input, template_output = st.columns(2)
-with template_input:
-    st.subheader("Input")
-    st.text_area("Template based explanation", st.session_state["currentQaProcessExplanations"][components]["input_data"]["rulebased"], label_visibility="collapsed")
-with template_output:
-    st.subheader("Output")
-    st.text_area("Template based explanation2", st.session_state["currentQaProcessExplanations"][components]["output_data"]["rulebased"], label_visibility="collapsed")
+st.divider()
 
-# Add rating
+st.header("Input data explanations")
+explanationInput, dataInput = st.columns(2)
+with explanationInput:
+    st.subheader("Template-based")
+    st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["input_data"]["rulebased"])
+    st.subheader("Generative")
+    st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["input_data"]["generative"])
+with dataInput:
+    sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][selected_component]["input_data"]["dataset"], lang="sparql", options={"wrap": False, "readOnly": True})
 
-st.header("Generative explanations", divider="gray")
-generative_input, generative_output = st.columns(2)
-with generative_input:
-    st.subheader("Input")
-    st.text_area("Generative generated explanation", st.session_state["currentQaProcessExplanations"][components]["input_data"]["generative"], label_visibility="collapsed")
-with generative_output:
-    st.subheader("Output")
-    st.text_area("Generative generated explanation2", st.session_state["currentQaProcessExplanations"][components]["output_data"]["generative"], label_visibility="collapsed")
+st.header("Output data explanations")
+explanationOutput, dataOutput = st.columns(2)
+with explanationOutput:
+    st.subheader("Template-based")
+    st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["rulebased"])
+    st.subheader("Generative")
+    st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["generative"])
+with dataOutput:
+    sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["dataset"], lang="rdf/xml", options={"wrap": True, "readOnly": True})
 
-# Add rating -> Which information is required to store in triplestore?
+
+# Additional HTML and JS
+
+st.markdown("""
+---
+Brought to you by the [<img style="height:3ex;border:0" src="https://avatars.githubusercontent.com/u/120292474?s=96&v=4"> WSE research group](https://wse-research.org/?utm_source=loris&utm_medium=footer) at the [Leipzig University of Applied Sciences](https://www.htwk-leipzig.de/).
+
+See our [GitHub team page](http://wse.technology/) for more projects and tools.
+""", unsafe_allow_html=True)
+
+with open("js/change_menu.js", "r") as f:
+    javascript = f.read()
+    html(f"<script style='display:none'>{javascript}</script>")
+
+html("""
+<script>
+parent.window.document.querySelectorAll("section[data-testid='stFileUploadDropzone']").forEach(function(element) {
+    element.classList.add("fileDropHover")   
+});
+
+github_ribbon = parent.window.document.createElement("div");            
+github_ribbon.innerHTML = '<a id="github-fork-ribbon" class="github-fork-ribbon right-bottom" href="%s" target="_blank" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>';
+if (parent.window.document.getElementById("github-fork-ribbon") == null) {
+    parent.window.document.body.appendChild(github_ribbon.firstChild);
+}
+</script>
+""" % (GITHUB_REPO,))
