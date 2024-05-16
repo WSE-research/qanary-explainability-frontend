@@ -2,22 +2,50 @@ import streamlit as st
 import requests
 import logging
 import json
-from rdflib import Graph, Namespace
+from rdflib import Namespace
+import time
 
 # Qanary components
-NED_DBPEDIA = "NED-DBpediaSpotlight"
-KG2KG = "KG2KG-TranslateAnnotationsOfInstanceToDBpediaOrWikidata"
-NED_DANDELION = "DandelionNED"
-QB_BIRTHDATA = "QB-BirthDataWikidata"
-QB_SINA = "SINA"
-QB_QANSWER = "QAnswerQueryBuilderAndQueryCandidateFetcher"
-QB_PLATYPUS = "PlatypusQueryBuilder"
-QE_SPARQLEXECUTER = "QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia"
-QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
+NED_DBPEDIA = {
+    "componentName": "NED-DBpediaSpotlight",
+    "componentMainType": "AnnotationOfInstance"
+}
+KG2KG = {
+    "componentName":"KG2KG-TranslateAnnotationsOfInstanceToDBpediaOrWikidata",
+    "componentMainType":"AnnotationOfInstance"
+}
+NED_DANDELION = {
+    "componentName":"DandelionNED",
+    "componentMainType":"AnnotationOfInstance"
+    }
+QB_BIRTHDATA = {
+    "componentName":"QB-BirthDataWikidata",
+    "componentMainType":"AnnotationOfAnswerSPARQL"
+}
+QB_SINA = {
+    "componentName":"SINA",
+    "componentMainType":"AnnotationOfAnswerSPARQL"
+    }
+QB_QANSWER = {
+    "componentName":"QAnswerQueryBuilderAndQueryCandidateFetcher",
+    "componentMainType":"AnnotationOfAnswerSPARQL"
+}
+QB_PLATYPUS = {
+    "componentName":"PlatypusQueryBuilder",
+    "componentMainType":"AnnotationOfAnswerSPARQL"
+}
+QE_SPARQLEXECUTER = {
+    "componentName":"QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia",
+    "componentMainType":"AnnotationOfAnswerJSON"
+}
+QBE_QANSWER = {
+    "componentName":"QAnswerQueryBuilderAndExecutor",
+    "componentMainType":"AnnotationOfAnswerJSON" # actually this component have several
+}
 
 CONFIG_ONE = "" # ?
-QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"
-QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000/explanations"
+QANARY_PIPELINE_URL = "http://localhost:8080"
+QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000"
 
 
 SPARQL_SELECT_EXPLANATION_QUERY = """
@@ -39,7 +67,7 @@ explanation_configurations_dict = {
         "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER]
     },
     "Configuration 2": {
-
+        "components": []
     },
     "Configuration 3": {
 
@@ -93,19 +121,35 @@ gptModels_dic = {
 gptModels = gptModels_dic.keys()
 st.session_state.currentQaProcessExplanations = {}
 st.session_state.componentsSelection = ()
+st.session_state.pipelineFinished = False
 
 ###### FUNCTIONS 
 
 def execute_qanary_pipeline(question, components):
     component_list = ""
     for component in components['components']:
-        component_list += "&componentlist[]=" + component
+        component_list += "&componentlist[]=" + component["componentName"]
 
     custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
     response = requests.post(custom_pipeline_url, {})
     logging.info("Qanary pipeline request response: " + str(response.status_code))
 
     return response
+
+def input_data_explanation(graph, json):
+    input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata"
+    response = requests.post(input_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
+    return response.text
+
+def convert_components_to_request_json_array(components):
+    json = []
+    for component in components:
+        json.append(component)
+    return json
+
+def output_data_explanation(graph, json):
+    output_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/outputdata"
+    return requests.post(output_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"}).text
 
 
 def request_explanations(question, components):
@@ -114,23 +158,34 @@ def request_explanations(question, components):
     logging.info("QA-Process information: " + str(qa_process_information))
     graph = qa_process_information.json()["outGraph"]
 
-    # Implement the explanation
+    json_data = json.dumps({
+    "graphUri": graph,
+    "generativeExplanationRequest": {
+        "shots": gptModels_dic[gptModel][SHOTS_KEY],
+        "gptModel": gptModels_dic[gptModel][MODEL_KEY],
+        "qanaryComponents": components['components']
+    }})
+
+    #input_data_explanations = json.loads(input_data_explanation(graph,json_data))
+    #output_data_explanations = output_data_explanations = output_data_explanation(graph,json_data)["explanationItems"]
+
     currentQaProcessExplanations = {}
+
     for component in components['components']:
-        try:
-            g = Graph()
-            custom_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/{graph}/urn:qanary:{component}" # Prob. make explanations available through triplestore
-            response = requests.get(custom_explanation_url, {})
-            g.parse(data=response.text)
-            print(response.text)
-            component_rulebased_explanation = list(g[:explanationsNs.hasExplanationForCreatedData])
-            component_generative_explanation = get_gpt_explanation()
-            currentQaProcessExplanations[component] = {
-                "rulebased": next(triple[1] for triple in component_rulebased_explanation if triple[1].language == 'en').value, # Probably establish a API to directly get the explanation, or, use a SELECT query here // move processing to backend
-                "generative": component_generative_explanation
+        compName = component["componentName"]
+        currentQaProcessExplanations[compName] = {
+            "meta_information": {
+                # add Meta information required for feedback
+            },
+            "input_data": {
+                "rulebased": "PlaceholderRulebased", # input_data_explanations["explanationItems"][compName]["templatebased"],
+                "generative": "PlaceholderGenerative" #input_data_explanations["explanationItems"][compName]["generative"]
+            },
+            "output_data": {
+                "rulebased": "PlaceholderRulebased", #output_data_explanation["explanationItems"][compName]["templatebased"],
+                "generative": "PlaceholderGenerative" #output_data_explanation["explanationItems"][compName]["generative"]
             }
-        except Exception as error:
-            print("An error occured while fetching the explanation for the component" + component + " with error: ", error)
+        }
 
     st.session_state.currentQaProcessExplanations = currentQaProcessExplanations
     st.session_state.componentsSelection = currentQaProcessExplanations.keys()
@@ -138,18 +193,7 @@ def request_explanations(question, components):
 def get_gpt_explanation():
     return ""
 
-def render_dict(dict):
-    for key, value in dict.items():
-       # st.write(f"**{key}**: {value.rulebased}")
-
-            if hasattr(value,'rulebased'):
-                st.write(f"**{key}**: {value.rulebased}")
-
-            else: 
-                st.write(f"**{key}**: {value}")
-       # with st.container():
-       #     st.write()
-
+st.set_page_config(layout="wide")
 st.header('Qanary Explanation Demo')
 
 with st.sidebar:
@@ -176,13 +220,28 @@ with submit_question:
 
 st.divider()
 
-# Implement details for Configuration and show the current selection's details
+# Show explanations and add selection
 
-components = st.selectbox(
-    'Select component', st.session_state["componentsSelection"]
-)
+components = st.selectbox('Select component', st.session_state["componentsSelection"])
 
-st.subheader("Template based explanation:", divider="gray")
-st.text_area("Template based explanation", st.session_state["currentQaProcessExplanations"][components]["rulebased"], label_visibility="collapsed") # Display differently
-st.subheader("Generative generated explanation:", divider="gray")
-st.text_area("Generative generated explanation", st.session_state["currentQaProcessExplanations"][components]["generative"], label_visibility="collapsed")
+st.header("Template based explanations", divider="gray")
+template_input, template_output = st.columns(2)
+with template_input:
+    st.subheader("Input")
+    st.text_area("Template based explanation", st.session_state["currentQaProcessExplanations"][components]["input_data"]["rulebased"], label_visibility="collapsed")
+with template_output:
+    st.subheader("Output")
+    st.text_area("Template based explanation2", st.session_state["currentQaProcessExplanations"][components]["output_data"]["rulebased"], label_visibility="collapsed")
+
+# Add rating
+
+st.header("Generative explanations", divider="gray")
+generative_input, generative_output = st.columns(2)
+with generative_input:
+    st.subheader("Input")
+    st.text_area("Generative generated explanation", st.session_state["currentQaProcessExplanations"][components]["input_data"]["generative"], label_visibility="collapsed")
+with generative_output:
+    st.subheader("Output")
+    st.text_area("Generative generated explanation2", st.session_state["currentQaProcessExplanations"][components]["output_data"]["generative"], label_visibility="collapsed")
+
+# Add rating -> Which information is required to store in triplestore?
