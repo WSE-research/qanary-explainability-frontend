@@ -7,6 +7,8 @@ from rdflib import Namespace
 from util import include_css
 from code_editor import code_editor
 
+st.set_page_config(layout="wide")
+
 # Qanary components
 NED_DBPEDIA = {
     "componentName": "NED-DBpediaSpotlight",
@@ -68,25 +70,27 @@ explanationsNs = Namespace("urn:qanary:explanations#")
 explanation_configurations_dict = {
     "Configuration 1": {
         "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER],
-        "helpText": "abc"
+        "exampleQuestions": "With this configuration, you can ask for a person's birthdate, e.g. When was Albert Einstein born?"
     },
     "Configuration 2": {
-        "components": []
+        "components": [],
+        "exampleQuestions": "With this configuration, you can ask for a person's birthdate, e.g. When was Angela Merkel born?"
     },
     "Configuration 3": {
 
     },
-    "Configuration 4": {
-
-    },
-    "Configuration 5": {
-
+    "Self configured": {
+        "components": [],
+        "exampleQuestions": ""
     }
 }
 explanation_configurations = explanation_configurations_dict.keys()
 
 GPT3_5_TURBO = "GPT-3.5 (from OpenAI)"
 GPT3_5_MODEL = "GPT_3_5"
+GPT3_5_CONCRETE = "Concrete models: gpt-3.5-turbo-instruct / gpt-3.5-turbo-16k"
+GPT4_CONCRETE = "Concrete model: gpt-4-0613"
+CONCRETE_MODEL = "concrete_model"
 GPT4 = "GPT-4 (from OpenAI)"
 GPT4_MODEL = "GPT_4"
 MODEL_KEY = "model"
@@ -95,6 +99,7 @@ SEPARATOR = """, shots: """
 ONESHOT = "1"  # "One-shot"
 TWOSHOT = "2"
 THREESHOT = "3"
+GPT_MODEL_HELP = "The examples for the prompts are generated randomly by executing several QA processes with Qanary. The selection of the Annotation-Type and Component for these examples are automated to reduce complexity."
 
 # MODEL MAPPINGS
 GPT3_5_ONE_SHOT = GPT3_5_TURBO + SEPARATOR + ONESHOT
@@ -106,27 +111,45 @@ GPT4_ONE_SHOT = GPT4 + SEPARATOR + ONESHOT
 gptModels_dic = {
     GPT3_5_ONE_SHOT: {
         MODEL_KEY: GPT3_5_MODEL,
-        SHOTS_KEY: 1
+        SHOTS_KEY: 1,
+        CONCRETE_MODEL: GPT3_5_CONCRETE
     },
     GPT3_5_TWO_SHOT: {
         MODEL_KEY: GPT3_5_MODEL,
-        SHOTS_KEY: 2
+        SHOTS_KEY: 2,
+        CONCRETE_MODEL: GPT3_5_CONCRETE
     },
     GPT3_5_THREE_SHOT: {
         MODEL_KEY: GPT3_5_MODEL,
-        SHOTS_KEY: 3
+        SHOTS_KEY: 3,
+        CONCRETE_MODEL: GPT3_5_CONCRETE
     },
     GPT4_ONE_SHOT: {
         MODEL_KEY: GPT4_MODEL,
-        SHOTS_KEY: 1
+        SHOTS_KEY: 1,
+        CONCRETE_MODEL: GPT4_CONCRETE
     }
 }
 
+
+
 gptModels = gptModels_dic.keys()
+concrete_models = [value[CONCRETE_MODEL] for value in gptModels_dic.values()]
 st.session_state.currentQaProcessExplanations = {}
 st.session_state.componentsSelection = ()
 
 ###### FUNCTIONS 
+
+@st.cache_data
+def request_components_list():
+    response = requests.get("http://demos.swe.htwk-leipzig.de:40111/components", {})
+    data = json.loads(response.text)
+    compList = []
+    for object in data:
+        compList.append(object["name"])
+    return compList
+
+st.session_state.componentsList = request_components_list()
 
 @st.cache_data
 def execute_qanary_pipeline(question, components):
@@ -202,13 +225,11 @@ def request_explanations(question, components, gptModel):
 def get_gpt_explanation():
     return ""
 
-st.set_page_config(layout="wide")
-include_css(st, ["css/style_github_ribbon.css"])
-st.header('Qanary Explanation Demo')
 
-help_text = {
-    "NED-"
-}
+
+include_css(st, ["css/style_github_ribbon.css"])
+include_css(st, ["css/custom.css"])
+st.header('Qanary Explanation Demo')
 
 with st.sidebar:
     st.subheader("Configurations")
@@ -216,14 +237,21 @@ with st.sidebar:
                              explanation_configurations, index=0)
     selected_configuration = explanation_configurations_dict[configuration]
 
+    if configuration == "Self configured":
+        options = st.multiselect(
+        "Chose your components",
+        st.session_state.componentsList)
+        selected_configuration["components"] = options
+
     st.subheader('GPT Model')
-    gptModel = st.radio('What GPT model should create the generative explanation?', gptModels, index=0)
+    gptModel = st.radio('What GPT model should create the generative explanation?', gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
     selected_gptModel = gptModels_dic[gptModel]
 
 header_column, button_column = st.columns(2)
 
 with header_column:
     st.subheader("Enter a question")
+    st.write(f'<span style="font-size: 1.1rem;">{selected_configuration["exampleQuestions"]}</span>', unsafe_allow_html=True)
 
 question, submit_question = st.columns([5, 1])
 
@@ -234,8 +262,14 @@ with submit_question:
 
 st.divider()
 
-
-containerPipelineAndComponentsRadio = st.container(border=False) # TODO:
+containerPipelineAndComponentsRadio = st.container(border=False)
+questionID, graphUri, sparqlEndpoint = containerPipelineAndComponentsRadio.columns(3)
+with questionID:
+    st.write(f"**Question URI**: <span class='plainLink'>{st.session_state.currentQaProcessExplanations['meta_information']['questionUri']} </span>", unsafe_allow_html=True)
+with graphUri:
+    st.write(f"**Graph URI**: {st.session_state.currentQaProcessExplanations['meta_information']['graphUri']}")
+with sparqlEndpoint:
+    st.write(f"**SPARQL endpoint**: <span class='plainLink'>{QANARY_PIPELINE_URL}/sparql</span>", unsafe_allow_html=True)
 #containerPipelineAndComponentsRadio.write(f"Qanary pipeline information:   Graph: {st.session_state.currentQaProcessExplanations['meta_information']['graphUri']} | Question ID:  | SPARQL endpoint: ")
 selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=True, index=0)
 
@@ -260,6 +294,7 @@ with explanationOutput:
     st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["generative"])
 with dataOutput:
     sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["dataset"], lang="rdf/xml", options={"wrap": True, "readOnly": True})
+
 
 
 # Additional HTML and JS
