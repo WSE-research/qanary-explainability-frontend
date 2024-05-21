@@ -8,50 +8,24 @@ from util import include_css
 from code_editor import code_editor
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, JsCode
 import pandas as pd
+from streamlit_sortables import sort_items
+import os
 
 st.set_page_config(layout="wide")
 
 # Qanary components
-NED_DBPEDIA = {
-    "componentName": "NED-DBpediaSpotlight",
-    "componentMainType": "AnnotationOfInstance"
-}
-KG2KG = {
-    "componentName":"KG2KG-TranslateAnnotationsOfInstanceToDBpediaOrWikidata",
-    "componentMainType":"AnnotationOfInstance"
-}
-NED_DANDELION = {
-    "componentName":"DandelionNED",
-    "componentMainType":"AnnotationOfInstance"
-    }
-QB_BIRTHDATA = {
-    "componentName":"QB-BirthDataWikidata",
-    "componentMainType":"AnnotationOfAnswerSPARQL"
-}
-QB_SINA = {
-    "componentName":"SINA",
-    "componentMainType":"AnnotationOfAnswerSPARQL"
-    }
-QB_QANSWER = {
-    "componentName":"QAnswerQueryBuilderAndQueryCandidateFetcher",
-    "componentMainType":"AnnotationOfAnswerSPARQL"
-}
-QB_PLATYPUS = {
-    "componentName":"PlatypusQueryBuilder",
-    "componentMainType":"AnnotationOfAnswerSPARQL"
-}
-QE_SPARQLEXECUTER = {
-    "componentName":"QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia",
-    "componentMainType":"AnnotationOfAnswerJson"
-}
-QBE_QANSWER = {
-    "componentName":"QAnswerQueryBuilderAndExecutor",
-    "componentMainType":"AnnotationOfAnswerJson" # actually this component have several
-}
+NED_DBPEDIA = "NED-DBpediaSpotlight"
+KG2KG = "KG2KG-TranslateAnnotationsOfInstanceToDBpediaOrWikidata"
+QB_BIRTHDATA = "QB-BirthDataWikidata"
+QB_SINA = "SINA"
+QB_QANSWER = "QAnswerQueryBuilderAndQueryCandidateFetcher"
+QB_PLATYPUS = "PlatypusQueryBuilder"
+QE_SPARQLEXECUTER = "QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia"
+QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
 
-CONFIG_ONE = "" # ?
-QANARY_PIPELINE_URL = "http://localhost:8080"
-QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000"
+QANARY_PIPELINE_URL = os.environ[QANARY_PIPELINE_URL]
+QANARY_EXPLANATION_SERVICE_URL = os.environ[QANARY_EXPLANATION_SERVICE_URL]
+QANARY_PIPELINE_COMPONENTS = os.environ[QANARY_PIPELINE_COMPONENTS]
 GITHUB_REPO = ""
 
 
@@ -75,7 +49,7 @@ explanation_configurations_dict = {
         "exampleQuestions": "With this configuration, you can ask for a person's birthdate, e.g. When was Albert Einstein born?"
     },
     "Configuration 2": {
-        "components": [],
+        "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER],
         "exampleQuestions": ""
     },
     "Configuration 3": {
@@ -130,67 +104,87 @@ gptModels_dic = {
     }
 }
 
-
-
 gptModels = gptModels_dic.keys()
 concrete_models = [value[CONCRETE_MODEL] for value in gptModels_dic.values()]
-st.session_state.currentQaProcessExplanations = {}
 
 if'pipeline_finished' not in st.session_state:
-    st.session_state['pipeline_finished'] = True
+    st.session_state['pipeline_finished'] = False
 if 'qanary_components' not in st.session_state:
     st.session_state['qanary_components'] = []
-###### FUNCTIONS 
+if 'explanations_generated' not in st.session_state:
+    st.session_state.explanations_generated = False
+if 'selected_component' not in st.session_state:
+    st.session_state.selected_component = ""
+if 'process_active' not in st.session_state:
+    st.session_state.process_active = False
+if 'currentQaProcessExplanations' not in st.session_state:
+    st.session_state.currentQaProcessExplanations = {}
+if 'selected_configuration' not in st.session_state:
+    st.session_state.selected_configuration = {}
 
-def init_session_states():
-    if not st.session_state.pipeline_finished:
-        st.session_state.pipeline_finished = False
-    if not st.session_state.explanations_generated:
-        st.session_state.explanations_generated = False
-    if not st.session_state.selected_component:
-        st.session_state.selected_component = ""
+###### FUNCTIONS 
 
 @st.cache_data
 def request_components_list():
-    response = requests.get("http://demos.swe.htwk-leipzig.de:40111/components", headers={"Accept":"application/json"}) # Auslagern der URL
+    response = requests.get(QANARY_PIPELINE_COMPONENTS, headers={"Accept":"application/json"}) # Auslagern der URL
     data = json.loads(response.text)
-    json_data = []
+    components = []
     for key in data:
-        json_data.append({
-            "Component": key["name"]
-        })
-    return json_data
+        components.append(key["name"])
+    return components
 
 @st.cache_data
 def execute_qanary_pipeline(question, components):
-    component_list = ""
-    for component in components:
-        component_list += "&componentlist[]=" + component
+    #component_list = ""
+    #for component in components:
+    #    component_list += "&componentlist[]=" + component
 
-    custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
-    response = requests.post(custom_pipeline_url, {})
-    logging.info("Qanary pipeline request response: " + str(response.status_code))
+    #custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
+    #print("Custom url: " + custom_pipeline_url)
+    #response = requests.post(custom_pipeline_url, {})
+    #logging.info("Qanary pipeline request response: " + str(response.status_code))
 
-    return response
+    #return response
+    return '{"outGraph": "outgraph", "question": "question"}'
+
 
 @st.cache_data
 def input_data_explanation(json):
-    input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata"
+    input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata/example"
     response = requests.post(input_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
     return response.text
 
 @st.cache_data
 def output_data_explanation(json):
-    output_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/outputdata"
+    output_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/outputdata/example"
     return requests.post(output_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"}).text
 
-def request_explanations(question, components, gptModel):
-    qa_process_information = execute_qanary_pipeline(question, components).json()
-    logging.info("QA-Process information: " + str(qa_process_information))
+def convert_component_dir_to_list(componentDir):
+    component_list = []
+    for component in componentDir:
+        component_list.append(component)
+    return component_list
+
+def switch_view():
+    st.session_state.explanations_generated = False
+    st.session_state.pipeline_finished = False
+    st.session_state.selected_component = ""
+    st.session_state.showPreconfigured = not st.session_state.showPreconfigured
+    st.session_state.process_active = False
+
+
+def request_explanations(question, gptModel):
+    st.session_state.explanations_generated = False
+    st.session_state.process_active = True
+    components = convert_component_dir_to_list(st.session_state.selected_configuration["components"])
+    print("DIct: " + str(components))
+    #qa_process_information = execute_qanary_pipeline(question, components).json()
+    qa_process_information = json.loads(execute_qanary_pipeline(question, components))
+    st.session_state.pipeline_finished = True
     graph = qa_process_information["outGraph"]
 
     json_data = json.dumps({
-    "graphUri": graph,
+    "graphUri": "graph",
     "generativeExplanationRequest": {
         "shots": gptModels_dic[gptModel][SHOTS_KEY], #Rename gpt models dict as it contains the shots value
         "gptModel": gptModels_dic[gptModel][MODEL_KEY],
@@ -207,7 +201,7 @@ def request_explanations(question, components, gptModel):
             "questionUri": qa_process_information["question"]
          }
     }
-# TODO: Set and unset boolean variables
+
     for component in components:
         currentQaProcessExplanations["components"][component] = {
             "input_data": {
@@ -224,14 +218,10 @@ def request_explanations(question, components, gptModel):
 
     st.session_state.currentQaProcessExplanations = currentQaProcessExplanations
     st.session_state.componentsSelection = currentQaProcessExplanations["components"].keys()
+    st.session_state.explanations_generated = True
 
 if "showPreconfigured" not in st.session_state:
     st.session_state.showPreconfigured = True;
-
-def changeConfig():
-    st.session_state.showPreconfigured = not st.session_state.showPreconfigured
-
-
 
 include_css(st, ["css/style_github_ribbon.css"])
 include_css(st, ["css/custom.css"])
@@ -243,19 +233,13 @@ with st.sidebar:
         st.subheader("Configurations")
         configuration = st.radio('Select a configuration, which youwant to test explanations for',
                                 explanation_configurations, index=0)
-        selected_configuration = explanation_configurations_dict[configuration]
-
-    #if configuration == "Self configured":
-    #    options = st.multiselect(
-    #    "Chose your components",
-    #    st.session_state.componentsList)
-    #    selected_configuration["components"] = options
+        st.session_state.selected_configuration = explanation_configurations_dict[configuration] # Make it a session state
 
     st.subheader('GPT Model')
     gptModel = st.radio('What GPT model should create the generative explanation?', gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
     selected_gptModel = gptModels_dic[gptModel]
 
-    configButton = st.button("Change configuration", on_click=changeConfig)
+    configButton = st.button("Change configuration", on_click=lambda: switch_view())
 
 ##### Header config
 
@@ -263,15 +247,17 @@ header_column, button_column = st.columns(2)
 
 with header_column:
     st.subheader("Enter a question")
-#    st.write(f'<span style="font-size: 1.1rem;">{selected_configuration["exampleQuestions"]}</span>', unsafe_allow_html=True)
+#    st.write(f'<span style="font-size: 1.1rem;">{st.session_state.selected_configuration["exampleQuestions"]}</span>', unsafe_allow_html=True)
 
 question, submit_question = st.columns([5, 1])
 
 with question:
     text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
 with submit_question:
-    st.button('Send', on_click=request_explanations(text_question, st.session_state.qanary_components, gptModel))
-    
+    st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
+
+
+
 ##### definitions for configurations
 
 def show_meta_data():
@@ -287,46 +273,58 @@ def show_meta_data():
         st.session_state.selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=True, index=0)
 
 def show_explanations():
-    if st.session_state.explanations_generated:
-        st.header("Input data explanations")
-        explanationInput, dataInput = st.columns(2)
-        with explanationInput:
-            st.subheader("Template-based")
-            st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["input_data"]["rulebased"])
-            st.subheader("Generative")
-            st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["input_data"]["generative"])
-        with dataInput:
-            sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][selected_component]["input_data"]["dataset"], lang="sparql", options={"wrap": False, "readOnly": True})
+        if st.session_state.selected_configuration["components"]:
+            st.header("Input data explanations")
+            explanationInput, dataInput = st.columns(2)
+            with explanationInput:
+                st.subheader("Template-based")
+                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["rulebased"])
+                st.subheader("Generative")
+                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["generative"])
+            with dataInput:
+                sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["dataset"], lang="sparql", options={"wrap": False, "readOnly": True})
 
-        st.header("Output data explanations")
-        explanationOutput, dataOutput = st.columns(2)
-        with explanationOutput:
-            st.subheader("Template-based")
-            st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["rulebased"])
-            st.subheader("Generative")
-            st.write("", st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["generative"])
-        with dataOutput:
-            sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][selected_component]["output_data"]["dataset"], lang="rdf/xml", options={"wrap": True, "readOnly": True})
+            st.header("Output data explanations")
+            explanationOutput, dataOutput = st.columns(2)
+            with explanationOutput:
+                st.subheader("Template-based")
+                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["rulebased"])
+                st.subheader("Generative")
+                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["generative"])
+            with dataOutput:
+                rdfData = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["dataset"], lang="rdf/xml", options={"wrap": True, "readOnly": True})
+
+        else:
+            st.write("You haven't selected a configuration or individual components")
 
 ##### Configured
 def pre_configured():
-    show_meta_data()
-    st.divider()
-    show_explanations()
+    if st.session_state.pipeline_finished:
+        show_meta_data()
+        st.divider()
+    if st.session_state.explanations_generated:
+        show_explanations()
 
 ##### Not configured
 
 def not_pre_configured():
-    if "componentsSelection" not in st.session_state:
-        components = request_components_list()
+    components = request_components_list()
+    componentsNames = convert_component_dir_to_list(components)
+    st.session_state.selected_configuration = {"components":{}}
 
     st.subheader("Select components for the Qanary pipeline execution")
 
-    grid = componentsGrid(components=components)
+    # Grid and store order and selected components in session store 
+    # grid = componentsGrid(components=components)
 
-    show_meta_data()
-    st.divider()
-    show_explanations()
+    st.session_state.selected_configuration["components"] = st.multiselect(label="Select your components in the correct order", label_visibility="hidden",options=componentsNames, key="compSelectionIndividual", placeholder="Choose your desired components")
+
+    if st.session_state.pipeline_finished:
+        st.divider()
+        show_meta_data()
+        st.divider()
+    if st.session_state.explanations_generated:
+        show_explanations()
 
 
 def componentsGrid(components):
@@ -345,9 +343,34 @@ if st.session_state.showPreconfigured:
     pre_configured()
 elif not st.session_state.showPreconfigured:
     not_pre_configured()
+
+
     
 
-# Additional HTML and JS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###### Additional HTML and JS
 
 st.markdown("""
 ---
