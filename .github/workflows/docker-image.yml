@@ -5,8 +5,6 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      CUSTOM_HEADER_LORIS: ${{ secrets.CUSTOM_HEADER_LORIS }}
     steps:
     - uses: actions/checkout@v4
     - name: Save tag to file if release
