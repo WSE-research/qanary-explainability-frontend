@@ -1,0 +1,11 @@
+{
+    "services": [{
+        "mode": "dockerfile",
+        "port": "40119:8501",
+        "image": "wseresearch/qanary-explainability-demo",
+        "tag": "latest",
+        "files": {
+            ".env": "files/env"
+        }
+    }]
+}
