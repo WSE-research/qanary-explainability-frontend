@@ -1,0 +1,7 @@
+streamlit==1.31.1
+streamlit_code_editor==0.1.0
+extra_streamlit_components==0.1.70
+decouple===0.0.7
+streamlit_sortables===0.2.0
+st_aggrid===1.0.5
+rdflib==7.0.0
