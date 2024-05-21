@@ -9,7 +9,7 @@ from code_editor import code_editor
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, JsCode
 import pandas as pd
 from streamlit_sortables import sort_items
-import os
+from decouple import config
 
 st.set_page_config(layout="wide")
 
@@ -23,10 +23,10 @@ QB_PLATYPUS = "PlatypusQueryBuilder"
 QE_SPARQLEXECUTER = "QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia"
 QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
 
-QANARY_PIPELINE_URL = os.environ[QANARY_PIPELINE_URL]
-QANARY_EXPLANATION_SERVICE_URL = os.environ[QANARY_EXPLANATION_SERVICE_URL]
-QANARY_PIPELINE_COMPONENTS = os.environ[QANARY_PIPELINE_COMPONENTS]
-GITHUB_REPO = ""
+QANARY_PIPELINE_URL = config('QANARY_PIPELINE_URL')
+QANARY_EXPLANATION_SERVICE_URL = config('QANARY_EXPLANATION_SERVICE_URL')
+QANARY_PIPELINE_COMPONENTS = config('QANARY_PIPELINE_COMPONENTS')
+GITHUB_REPO = config('GITHUB_REPO')
 
 
 SPARQL_SELECT_EXPLANATION_QUERY = """
