@@ -1,12 +1,11 @@
 import streamlit as st
 from streamlit.components.v1 import html
 import requests
-import logging
 import json
 from rdflib import Namespace
 from util import include_css
 from code_editor import code_editor
-from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, JsCode
+from st_aggrid import GridOptionsBuilder, AgGrid
 import pandas as pd
 from streamlit_sortables import sort_items
 from decouple import config
@@ -135,18 +134,13 @@ def request_components_list():
 
 @st.cache_data
 def execute_qanary_pipeline(question, components):
-    #component_list = ""
-    #for component in components:
-    #    component_list += "&componentlist[]=" + component
+    component_list = ""
+    for component in components:
+        component_list += "&componentlist[]=" + component
 
-    #custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
-    #print("Custom url: " + custom_pipeline_url)
-    #response = requests.post(custom_pipeline_url, {})
-    #logging.info("Qanary pipeline request response: " + str(response.status_code))
-
-    #return response
-    return '{"outGraph": "outgraph", "question": "question"}'
-
+    custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
+    print("Executing post request on: " + custom_pipeline_url)
+    return requests.post(custom_pipeline_url, {})
 
 @st.cache_data
 def input_data_explanation(json):
@@ -178,8 +172,8 @@ def request_explanations(question, gptModel):
     st.session_state.process_active = True
     components = convert_component_dir_to_list(st.session_state.selected_configuration["components"])
     print("DIct: " + str(components))
-    #qa_process_information = execute_qanary_pipeline(question, components).json()
-    qa_process_information = json.loads(execute_qanary_pipeline(question, components))
+    qa_process_information = execute_qanary_pipeline(question, components).json()
+    #qa_process_information = json.loads(execute_qanary_pipeline(question, components))
     st.session_state.pipeline_finished = True
     graph = qa_process_information["outGraph"]
 
