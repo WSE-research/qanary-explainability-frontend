@@ -22,10 +22,10 @@ QB_PLATYPUS = "PlatypusQueryBuilder"
 QE_SPARQLEXECUTER = "QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia"
 QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
 
-QANARY_PIPELINE_URL = config('QANARY_PIPELINE_URL')
-QANARY_EXPLANATION_SERVICE_URL = config('QANARY_EXPLANATION_SERVICE_URL')
-QANARY_PIPELINE_COMPONENTS = config('QANARY_PIPELINE_COMPONENTS')
-GITHUB_REPO = config('GITHUB_REPO')
+QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"#config('QANARY_PIPELINE_URL')
+QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000"#config('QANARY_EXPLANATION_SERVICE_URL')
+QANARY_PIPELINE_COMPONENTS = "http://demos.swe.htwk-leipzig.de:40111/components"#config('QANARY_PIPELINE_COMPONENTS')
+GITHUB_REPO = "https://github.com/WSE-research/qanary-explanainability-frontend"#config('GITHUB_REPO')
 
 
 SPARQL_SELECT_EXPLANATION_QUERY = """
@@ -120,6 +120,8 @@ if 'currentQaProcessExplanations' not in st.session_state:
     st.session_state.currentQaProcessExplanations = {}
 if 'selected_configuration' not in st.session_state:
     st.session_state.selected_configuration = {}
+if "showPreconfigured" not in st.session_state:
+    st.session_state.showPreconfigured = True;
 
 ###### FUNCTIONS 
 
@@ -137,21 +139,22 @@ def execute_qanary_pipeline(question, components):
     component_list = ""
     for component in components:
         component_list += "&componentlist[]=" + component
-
     custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
-    print("Executing post request on: " + custom_pipeline_url)
     return requests.post(custom_pipeline_url, {})
 
 @st.cache_data
 def input_data_explanation(json):
-    input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata/example"
+    input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata"
     response = requests.post(input_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
+    print("Response: " + response.text)
     return response.text
 
 @st.cache_data
 def output_data_explanation(json):
-    output_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/outputdata/example"
-    return requests.post(output_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"}).text
+    output_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/outputdata"
+    response = requests.post(output_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
+    print("Response: " + response.text)
+    return response.text
 
 def convert_component_dir_to_list(componentDir):
     component_list = []
@@ -171,20 +174,19 @@ def request_explanations(question, gptModel):
     st.session_state.explanations_generated = False
     st.session_state.process_active = True
     components = convert_component_dir_to_list(st.session_state.selected_configuration["components"])
-    print("DIct: " + str(components))
     qa_process_information = execute_qanary_pipeline(question, components).json()
-    #qa_process_information = json.loads(execute_qanary_pipeline(question, components))
     st.session_state.pipeline_finished = True
     graph = qa_process_information["outGraph"]
-
     json_data = json.dumps({
-    "graphUri": "graph",
+    "graphUri": graph,
     "generativeExplanationRequest": {
         "shots": gptModels_dic[gptModel][SHOTS_KEY], #Rename gpt models dict as it contains the shots value
         "gptModel": gptModels_dic[gptModel][MODEL_KEY],
         "qanaryComponents": components
     }})
 
+    print("JSON: " + json_data)
+    
     input_data_explanations = json.loads(input_data_explanation(json_data))
     output_data_explanations = json.loads(output_data_explanation(json_data))
 
@@ -213,44 +215,6 @@ def request_explanations(question, gptModel):
     st.session_state.currentQaProcessExplanations = currentQaProcessExplanations
     st.session_state.componentsSelection = currentQaProcessExplanations["components"].keys()
     st.session_state.explanations_generated = True
-
-if "showPreconfigured" not in st.session_state:
-    st.session_state.showPreconfigured = True;
-
-include_css(st, ["css/style_github_ribbon.css"])
-include_css(st, ["css/custom.css"])
-st.header('Qanary Explanation Demo')
-
-
-with st.sidebar:
-    if st.session_state.showPreconfigured:
-        st.subheader("Configurations")
-        configuration = st.radio('Select a configuration, which youwant to test explanations for',
-                                explanation_configurations, index=0)
-        st.session_state.selected_configuration = explanation_configurations_dict[configuration] # Make it a session state
-
-    st.subheader('GPT Model')
-    gptModel = st.radio('What GPT model should create the generative explanation?', gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
-    selected_gptModel = gptModels_dic[gptModel]
-
-    configButton = st.button("Change configuration", on_click=lambda: switch_view())
-
-##### Header config
-
-header_column, button_column = st.columns(2)
-
-with header_column:
-    st.subheader("Enter a question")
-#    st.write(f'<span style="font-size: 1.1rem;">{st.session_state.selected_configuration["exampleQuestions"]}</span>', unsafe_allow_html=True)
-
-question, submit_question = st.columns([5, 1])
-
-with question:
-    text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
-with submit_question:
-    st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
-
-
 
 ##### definitions for configurations
 
@@ -290,6 +254,43 @@ def show_explanations():
 
         else:
             st.write("You haven't selected a configuration or individual components")
+
+include_css(st, ["css/style_github_ribbon.css"])
+include_css(st, ["css/custom.css"])
+st.header('Qanary Explanation Demo')
+
+
+with st.sidebar:
+    if st.session_state.showPreconfigured:
+        st.subheader("Configurations")
+        configuration = st.radio('Select a configuration, which youwant to test explanations for',
+                                explanation_configurations, index=0)
+        st.session_state.selected_configuration = explanation_configurations_dict[configuration] # Make it a session state
+
+    st.subheader('GPT Model')
+    gptModel = st.radio('What GPT model should create the generative explanation?', gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
+    selected_gptModel = gptModels_dic[gptModel]
+
+    configButton = st.button("Change configuration", on_click=lambda: switch_view())
+
+##### Header config
+
+header_column, button_column = st.columns(2)
+
+with header_column:
+    st.subheader("Enter a question")
+#    st.write(f'<span style="font-size: 1.1rem;">{st.session_state.selected_configuration["exampleQuestions"]}</span>', unsafe_allow_html=True)
+
+question, submit_question = st.columns([5, 1])
+
+with question:
+    text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
+with submit_question:
+    st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
+
+
+
+
 
 ##### Configured
 def pre_configured():
