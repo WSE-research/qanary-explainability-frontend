@@ -23,7 +23,7 @@ QE_SPARQLEXECUTER = "QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia"
 QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
 
 QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"#config('QANARY_PIPELINE_URL')
-QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000"#config('QANARY_EXPLANATION_SERVICE_URL')
+QANARY_EXPLANATION_SERVICE_URL = "http://demos.swe.htwk-leipzig.de:40190"#config('QANARY_EXPLANATION_SERVICE_URL')
 QANARY_PIPELINE_COMPONENTS = "http://demos.swe.htwk-leipzig.de:40111/components"#config('QANARY_PIPELINE_COMPONENTS')
 GITHUB_REPO = "https://github.com/WSE-research/qanary-explanainability-frontend"#config('GITHUB_REPO')
 
@@ -203,12 +203,14 @@ def request_explanations(question, gptModel):
             "input_data": {
                 "rulebased": input_data_explanations["explanationItems"][component]["templatebased"],
                 "generative": input_data_explanations["explanationItems"][component]["generative"],
-                "dataset": input_data_explanations["explanationItems"][component]["dataset"]
+                "dataset": input_data_explanations["explanationItems"][component]["dataset"],
+                "prompt": input_data_explanations["explanationItems"][component]["prompt"]
             },
             "output_data": {
                 "rulebased": output_data_explanations["explanationItems"][component]["templatebased"],
-                "generative": output_data_explanations["explanationItems"][component]["generative"],
-                "dataset" : output_data_explanations["explanationItems"][component]["dataset"]
+                "generative": output_data_explanations["explanationItems"][component]["generative"].lstrip(),
+                "dataset" : output_data_explanations["explanationItems"][component]["dataset"],
+                "prompt": output_data_explanations["explanationItems"][component]["prompt"]
             }
         }
 
@@ -233,25 +235,29 @@ def show_meta_data():
 def show_explanations():
         if st.session_state.selected_configuration["components"]:
             st.header("Input data explanations")
-            explanationInput, dataInput = st.columns(2)
-            with explanationInput:
-                st.subheader("Template-based")
-                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["rulebased"])
-                st.subheader("Generative")
-                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["generative"])
-            with dataInput:
-                sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["dataset"], lang="sparql", options={"wrap": False, "readOnly": True})
-
-            st.header("Output data explanations")
-            explanationOutput, dataOutput = st.columns(2)
-            with explanationOutput:
-                st.subheader("Template-based")
-                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["rulebased"])
-                st.subheader("Generative")
-                st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["generative"])
-            with dataOutput:
-                rdfData = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["dataset"], lang="rdf/xml", options={"wrap": True, "readOnly": True})
-
+            with st.container():
+                explanationInput, dataInput = st.columns(spec=[0.4, 0.6])
+                with explanationInput:
+                    st.subheader("Template-based")
+                    st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["rulebased"])
+                    st.subheader("Generative")
+                    st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["generative"])
+                with dataInput:
+                    st.subheader("SPARQL Query")
+                    sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["dataset"], lang="sparql", options={"wrap": False, "readOnly": True})
+            # Here, evaluation buttons
+            st.divider()
+            with st.container():
+                st.header("Output data explanations")
+                explanationOutput, dataOutput = st.columns(spec=[0.4, 0.6])
+                with explanationOutput:
+                    st.subheader("Template-based")
+                    st.markdown(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["rulebased"])
+                    st.subheader("Generative")
+                    st.markdown(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["generative"])
+                with dataOutput:
+                    rdfData = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["dataset"], lang="turtle", options={"wrap": True, "readOnly": True})
+            # Here, evaluation buttons
         else:
             st.write("You haven't selected a configuration or individual components")
 
