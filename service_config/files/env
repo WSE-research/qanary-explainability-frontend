@@ -1,4 +1,0 @@
-QANARY_PIPELINE_URL=http://demos.swe.htwk-leipzig.de:40111
-QANARY_EXPLANATION_SERVICE_URL=http://demos.swe.htwk-leipzig.de:40190
-QANARY_PIPELINE_COMPONENTS=http://demos.swe.htwk-leipzig.de:40111/components
-GITHUB_REPO=https://github.com/WSE-research/qanary-explanainability-frontend
