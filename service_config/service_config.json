@@ -5,7 +5,7 @@
         "image": "wseresearch/qanary-explainability-demo",
         "tag": "latest",
         "files": {
-            ".env": "files/env"
+            ".env": "files/.env"
         }
     }]
 }
