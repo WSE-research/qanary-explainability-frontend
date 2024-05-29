@@ -1,2 +1,11 @@
 .plainLink > a { text-decoration: none !important; color: black !important; }
 
+.overflowBreak {
+    overflow-wrap: break-word;
+    word-break:normal;
+}
+
+.custom-divider {
+    border-top: 5px solid #e0e0e0; /* Adjust the thickness and color here */
+    margin: 20px 0; /* Adjust the spacing here */
+}

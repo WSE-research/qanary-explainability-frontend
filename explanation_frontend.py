@@ -1,5 +1,6 @@
 import streamlit as st
 from streamlit.components.v1 import html
+import html as htmls
 import requests
 import json
 from rdflib import Namespace
@@ -11,6 +12,8 @@ from streamlit_sortables import sort_items
 from decouple import config
 
 st.set_page_config(layout="wide")
+include_css(st, ["css/style_github_ribbon.css"])
+include_css(st, ["css/custom.css"])
 
 # Qanary components
 NED_DBPEDIA = "NED-DBpediaSpotlight"
@@ -26,7 +29,6 @@ QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"#config('QANARY_PI
 QANARY_EXPLANATION_SERVICE_URL = "http://demos.swe.htwk-leipzig.de:40190"#config('QANARY_EXPLANATION_SERVICE_URL')
 QANARY_PIPELINE_COMPONENTS = "http://demos.swe.htwk-leipzig.de:40111/components"#config('QANARY_PIPELINE_COMPONENTS')
 GITHUB_REPO = "https://github.com/WSE-research/qanary-explanainability-frontend"#config('GITHUB_REPO')
-
 
 SPARQL_SELECT_EXPLANATION_QUERY = """
     PREFIX explanations: <urn:qanary:explanations#>
@@ -220,6 +222,29 @@ def request_explanations(question, gptModel):
 
 ##### definitions for configurations
 
+def showExplanationContainer(component, lang, plainKey): # use the current component instead
+    generative = (component["generative"]).strip("\n")
+    template = (component["rulebased"]).strip("\n")
+    with st.container(height=400, border=False):
+        col1, col2 = st.columns([0.4,0.6])
+        with col1:
+            st.markdown(f"""<div style="margin-bottom: 25px;"><h3>Template</h3><div>{template}</div></div>""", unsafe_allow_html=True)
+            #evalButtons(plainKey + "1", plainKey + "2")
+            st.markdown(f"""<div style="margin-bottom: 25px;"><h3>Generative</h3><div>{generative}</div></div>""", unsafe_allow_html=True)
+            #evalButtons(plainKey + "3", plainKey + "4")
+            st.markdown(f"""<h3>Evaluation</h3>""", unsafe_allow_html=True)
+        with col2:
+            st.markdown("""<h3>Dataset</h3>""", unsafe_allow_html=True)
+            code_editor(component["dataset"],lang=lang, props={"readOnly":True, "maxLines":100})
+    st.divider()
+    with st.expander("Show used prompt"):
+        code_editor(component["prompt"],lang="text", props={"readOnly":True})
+
+def evalButtons(key1, key2):
+    lButton, rButton = st.columns([1,5])
+    lButton.button("Ahoy", key=key1)
+    rButton.button("Bahoy", key=key2)
+
 def show_meta_data():
     if st.session_state.pipeline_finished:
         containerPipelineAndComponentsRadio = st.container(border=False)
@@ -227,7 +252,7 @@ def show_meta_data():
         with questionID:
             st.write(f"**Question URI**: <span class='plainLink'>{st.session_state.currentQaProcessExplanations['meta_information']['questionUri']} </span>", unsafe_allow_html=True)
         with graphUri:
-            st.write(f"**Graph URI**: {st.session_state.currentQaProcessExplanations['meta_information']['graphUri']}")
+            st.markdown(f"<p><b>Graph:</b> {st.session_state.currentQaProcessExplanations['meta_information']['graphUri']}</p>", unsafe_allow_html=True)
         with sparqlEndpoint:
             st.write(f"**SPARQL endpoint**: <span class='plainLink'>{QANARY_PIPELINE_URL}/sparql</span>", unsafe_allow_html=True)
         st.session_state.selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=True, index=0)
@@ -235,34 +260,13 @@ def show_meta_data():
 def show_explanations():
         if st.session_state.selected_configuration["components"]:
             st.header("Input data explanations")
-            with st.container():
-                explanationInput, dataInput = st.columns(spec=[0.4, 0.6])
-                with explanationInput:
-                    st.subheader("Template-based")
-                    st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["rulebased"])
-                    st.subheader("Generative")
-                    st.write("", st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["generative"])
-                with dataInput:
-                    st.subheader("SPARQL Query")
-                    sparqlQuery = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"]["dataset"], lang="sparql", options={"wrap": False, "readOnly": True})
-            # Here, evaluation buttons
-            st.divider()
-            with st.container():
-                st.header("Output data explanations")
-                explanationOutput, dataOutput = st.columns(spec=[0.4, 0.6])
-                with explanationOutput:
-                    st.subheader("Template-based")
-                    st.markdown(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["rulebased"])
-                    st.subheader("Generative")
-                    st.markdown(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["generative"])
-                with dataOutput:
-                    rdfData = code_editor(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"]["dataset"], lang="turtle", options={"wrap": True, "readOnly": True})
-            # Here, evaluation buttons
+            showExplanationContainer(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"], "sparql", "input")
+            st.markdown("""<div class="custom-divider"></div>""",unsafe_allow_html=True)
+            st.header("Output data explanations")
+            showExplanationContainer(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"], "turtle", "output")    
         else:
             st.write("You haven't selected a configuration or individual components")
 
-include_css(st, ["css/style_github_ribbon.css"])
-include_css(st, ["css/custom.css"])
 st.header('Qanary Explanation Demo')
 
 
@@ -293,10 +297,6 @@ with question:
     text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
 with submit_question:
     st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
-
-
-
-
 
 ##### Configured
 def pre_configured():
