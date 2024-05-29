@@ -1,18 +1,16 @@
-FROM python:3.9-slim
+FROM ubuntu:22.04
 
 ENV SERVER_PORT=8501
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    software-properties-common \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -yq bash curl wget ca-certificates python3 python3-pip
 
 # copy the application files
 COPY . /app
 WORKDIR /app
 
+# install python dependencies
+RUN python3 --version
+RUN python3 -m pip install --upgrade pip 
 RUN python3 -m pip install -r requirements.txt
 
 EXPOSE $SERVER_PORT

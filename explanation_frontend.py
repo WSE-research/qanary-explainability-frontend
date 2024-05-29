@@ -5,7 +5,6 @@ import json
 from rdflib import Namespace
 from util import include_css
 from code_editor import code_editor
-from st_aggrid import GridOptionsBuilder, AgGrid
 import pandas as pd
 from decouple import config
 from streamlit_ace import st_ace
