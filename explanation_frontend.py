@@ -170,13 +170,13 @@ def createExplanationDict(input, output):
     return {
                 "input_data": {
                 "rulebased": input["templatebased"],
-                "generative": input["generative"],
+                "generative": input["generative"].lstrip("\n"),
                 "dataset": input["dataset"],
                 "prompt": input["prompt"]
             },
             "output_data": {
                 "rulebased": output["templatebased"],
-                "generative": output["generative"],
+                "generative": output["generative"].lstrip("\n"),
                 "dataset" : output["dataset"],
                 "prompt": output["prompt"]
             }
