@@ -2,10 +2,10 @@
     "services": [{
         "mode": "dockerfile",
         "port": "40119:8501",
-        "image": "wseresearch/qanary-explainability-demo",
+        "image": "wseresearch/qanary-explainability-frontend",
         "tag": "latest",
         "files": {
-            ".env": "files/.env"
+            ".env": ".env"
         }
     }]
 }

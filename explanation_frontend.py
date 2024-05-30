@@ -7,7 +7,6 @@ from util import include_css
 from code_editor import code_editor
 import pandas as pd
 from decouple import config
-from streamlit_ace import st_ace
 
 st.set_page_config(layout="wide")
 include_css(st, ["css/style_github_ribbon.css"])
