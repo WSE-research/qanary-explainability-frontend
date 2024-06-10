@@ -1,3 +1,4 @@
+import logging
 import streamlit as st
 from streamlit.components.v1 import html
 import requests
@@ -256,8 +257,21 @@ def feedback_button(key, icon):
         send_feedback()
         st.toast(get_random_element(feedback_messages), icon=get_random_element(feedback_icons))
 
-def send_feedback():
-    return None
+# Needed:
+    # Graph, component, explanation, explanation type, gpt model, shots, feedback
+def send_feedback(explanation, explanation_type, feedback):
+    try: 
+        response = requests.post("", json= {
+            "graph": st.session_state.currentQaProcessExplanations["meta_information"]["graphUri"],
+            "component": st.session_state.selected_component,
+            "explanation": explanation,
+            "explanation_type": explanation_type,
+            "gpt_model": st.session_state.selected_gptModel["concrete_model"],
+            "shots": st.session_state.selected_gptModel["shots"],
+            "feedback": feedback
+        })
+    except Exception as e:
+        logging.error("Feedback wasn't sent: " + str(e))
 
 def show_meta_data():
     if st.session_state.pipeline_finished:
