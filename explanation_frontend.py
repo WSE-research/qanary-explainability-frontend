@@ -3,7 +3,7 @@ from streamlit.components.v1 import html
 import requests
 import json
 from rdflib import Namespace
-from util import include_css
+from util import include_css, get_random_element, feedback_messages, feedback_icons
 from code_editor import code_editor
 import pandas as pd
 from decouple import config
@@ -226,20 +226,38 @@ def showExplanationContainer(component, lang, plainKey): # use the current compo
     with st.container(border=False):
         col1, col2 = st.columns([0.4,0.6])
         with col1:
-            st.markdown(f"""<div style="margin-bottom: 25px;"><h3>Template</h3><div>{template}</div></div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div style="margin-bottom: 25px;"><h3>Generative</h3><div>{generative}</div></div>""", unsafe_allow_html=True)
-            st.warning("Which explanation do you think is better?")
-            templateButton, generativeButton, noneButton, placeholder = st.columns((1,1,1,2))
-            templateButton.button("Template", key=plainKey+"template", type="primary")
-            generativeButton.button("Generative", key=plainKey+"generative", type="primary")
-            noneButton.button("None", key=plainKey+"none")
-
+            template_based_container = st.container()
+            with template_based_container:
+                st.markdown(f"""<h3>Template</h3>""", unsafe_allow_html=True)
+                text_template, buttons_template = st.columns([0.85,0.15])
+                with text_template:
+                    st.markdown(f"""<div style="margin-bottom: 25px;">{template}</div>""", unsafe_allow_html=True)
+                with buttons_template:
+                    feedback_button(plainKey+"template"+"correct",":white_check_mark:")
+                    feedback_button(plainKey+"template"+"wrong",":x:")
+            generative_based_container = st.container()
+            with generative_based_container:
+                st.markdown(f"""<h3>Generative</h3>""", unsafe_allow_html=True)
+                text_template, buttons_template = st.columns([0.85,0.15])
+                with text_template:
+                    st.markdown(f"""<div style="margin-bottom: 25px;">{generative}</div>""", unsafe_allow_html=True)
+                with buttons_template:
+                    feedback_button(plainKey+"generative"+"correct",":white_check_mark:")
+                    feedback_button(plainKey+"generative"+"wrong",":x:")
         with col2:
             st.markdown("""<h3>Dataset</h3>""", unsafe_allow_html=True)
             code_editor(component["dataset"],lang="text", theme="default", options={"wrap": True})
     st.divider()
     with st.expander("Show used prompt"):   
         code_editor(component["prompt"], lang="text", theme="default", options={"wrap": True})
+
+def feedback_button(key, icon):
+    if st.button(icon, key=key, type="secondary"):
+        send_feedback()
+        st.toast(get_random_element(feedback_messages), icon=get_random_element(feedback_icons))
+
+def send_feedback():
+    return None
 
 def show_meta_data():
     if st.session_state.pipeline_finished:
