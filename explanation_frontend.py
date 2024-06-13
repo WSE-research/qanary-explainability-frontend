@@ -27,6 +27,7 @@ QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"#config('QANARY_PI
 QANARY_EXPLANATION_SERVICE_URL = "http://demos.swe.htwk-leipzig.de:40190"#config('QANARY_EXPLANATION_SERVICE_URL')
 QANARY_PIPELINE_COMPONENTS = "http://demos.swe.htwk-leipzig.de:40111/components"#config('QANARY_PIPELINE_COMPONENTS')
 GITHUB_REPO = "https://github.com/WSE-research/qanary-explanainability-frontend"#config('GITHUB_REPO')
+FEEDBACK_URL = "" #config('FEEDBACK_URL')
 
 explanationsNs = Namespace("urn:qanary:explanations#")
 
@@ -34,7 +35,11 @@ explanationsNs = Namespace("urn:qanary:explanations#")
 explanation_configurations_dict = {
     "Configuration 1": {
         "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER],
-        "exampleQuestions": "With this configuration, you can ask for a person's birthdate, e.g. When was Albert Einstein born?"
+        "exampleQuestions": [
+            "What is the birth date of Albert Einstein?",
+            "When was Albert Einstein born?",
+            "What is the birth date of Jesus Christ?",
+        ]
     },
     "Configuration 2": {
         "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER],
@@ -261,7 +266,7 @@ def feedback_button(key, icon):
     # Graph, component, explanation, explanation type, gpt model, shots, feedback
 def send_feedback(explanation, explanation_type, feedback):
     try: 
-        response = requests.post("", json= {
+        response = requests.post(FEEDBACK_URL, json= {
             "graph": st.session_state.currentQaProcessExplanations["meta_information"]["graphUri"],
             "component": st.session_state.selected_component,
             "explanation": explanation,
@@ -328,16 +333,15 @@ st.header('Qanary Explanation Demo')
 
 with st.sidebar:
     if st.session_state.showPreconfigured:
-        st.subheader("Configurations")
-        configuration = st.radio('Select a configuration, which youwant to test explanations for',
-                                explanation_configurations, index=0)
+        st.subheader("Default configurations", help="Select a pre-defined configuration to start the Qanary pipeline with.")
+        configuration = st.radio(label='Select a configuration:',options=explanation_configurations, index=0, label_visibility="collapsed")
         st.session_state.selected_configuration = explanation_configurations_dict[configuration] # Make it a session state
-
-    st.subheader('GPT Model')
-    gptModel = st.radio('What GPT model should create the generative explanation?', gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
+        configButton = st.button("Change configuration", on_click=lambda: switch_view())
+    st.subheader('GPT Model', help="Select a GPT model to generate the generative explanation.")
+    gptModel = st.radio('What GPT model should create the generative explanation?', label_visibility="collapsed", options=gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
     selected_gptModel = gptModels_dic[gptModel]
-
-    configButton = st.button("Change configuration", on_click=lambda: switch_view())
+    if not st.session_state.showPreconfigured:
+        configButton = st.button("Change configuration", on_click=lambda: switch_view())
 
 ### Header
 
@@ -353,6 +357,11 @@ with question:
     text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
 with submit_question:
     st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
+
+with st.expander("Example questions"):
+    code_editor("Question 1", buttons=[{"name": "Copy","hasText": True, "alwaysOn": True, "style": {"top": "0.46rem", "right": "0.4rem"}}])
+    code_editor("Question 2", buttons=[{"name": "Copy","hasText": True, "alwaysOn": True, "style": {"top": "0.46rem", "right": "0.4rem"}}])    
+    code_editor("Question 3", buttons=[{"name": "Copy","hasText": True, "alwaysOn": True, "style": {"top": "0.46rem", "right": "0.4rem"}}])
 
 # Select whether showPreconfigured is True or False
 
