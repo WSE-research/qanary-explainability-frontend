@@ -74,7 +74,7 @@ GPT_MODEL_HELP = "The examples for the prompts are generated randomly by executi
 GPT3_5_ONE_SHOT = GPT3_5_TURBO + SEPARATOR + ONESHOT
 GPT3_5_TWO_SHOT = GPT3_5_TURBO + SEPARATOR + TWOSHOT
 GPT3_5_THREE_SHOT = GPT3_5_TURBO + SEPARATOR + THREESHOT
-GPT4_ONE_SHOT = GPT4 + SEPARATOR + ONESHOT
+GPT4_ONE_SHOT = GPT4 + SEPARATOR + ONESHOT + ":star:"
 
 ### Selectable GPT models
 gptModels_dic = {
@@ -228,7 +228,7 @@ def request_explanations(question, gptModel):
 
 ##### definitions for configurations
 
-def showExplanationContainer2(component, lang, plainKey): # use the current component instead
+def showExplanationContainer2(component, lang, plainKey, datasetTitle): # use the current component instead
     generative = (component["generative"]).strip("\n")
     template = (component["rulebased"]).strip("\n")
     with st.container(border=False):
@@ -253,20 +253,20 @@ def showExplanationContainer2(component, lang, plainKey): # use the current comp
                     feedback_button(plainKey+"generative"+"correct",":white_check_mark:")
                     feedback_button(plainKey+"generative"+"wrong",":x:")
         with col2:
-            st.markdown("""<h3>Dataset</h3>""", unsafe_allow_html=True)
+            st.markdown("""<h3>{datasetTitle}</h3>""", unsafe_allow_html=True)
             code_editor(component["dataset"],lang="text", theme="default", options={"wrap": True})
     st.divider()
     with st.expander("Show used prompt"):   
         code_editor(component["prompt"], lang="text", theme="default", options={"wrap": True})
 
-def showExplanationContainer(component, lang, plainKey):
+def showExplanationContainer(component, lang, plainKey, datasetTitle):
     generative = (component["generative"]).strip("\n")
     template = (component["rulebased"]).strip("\n")
     with st.container(border=False):
-        with st.expander("Dataset"):
-            code_editor(component["dataset"],lang="text", theme="default", options={"wrap": True})
+        with st.expander(datasetTitle):
+            code_editor(component["dataset"],lang=lang, theme="default", options={"wrap": True})
         with st.expander("Prompt"):
-            code_editor(component["prompt"], lang="text", theme="default", options={"wrap": True})
+            code_editor(component["prompt"], lang="turtle", theme="default", options={"wrap": True})
         templateCol, generativeCol = st.columns([0.5,0.5])
         with templateCol:
             st.markdown(f"""<h3>Template</h3>""", unsafe_allow_html=True)
@@ -319,10 +319,10 @@ def show_meta_data():
 def show_explanations():
         if st.session_state.selected_configuration["components"]:
             st.header("Input data explanations")
-            showExplanationContainer(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"], "sparql", "input")
+            showExplanationContainer(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["input_data"], "sparql", "input","SPARQL query")
             st.markdown("""<div class="custom-divider"></div>""",unsafe_allow_html=True)
             st.header("Output data explanations")
-            showExplanationContainer(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"], "turtle", "output")    
+            showExplanationContainer(st.session_state["currentQaProcessExplanations"]["components"][st.session_state.selected_component]["output_data"], "turtle", "output", "RDF Triples")
         else:
             st.write("You haven't selected a configuration or individual components")
 
