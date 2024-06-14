@@ -348,7 +348,7 @@ with st.sidebar:
 def exampleQuestion(key, question): 
     button, text = st.columns([0.05,0.95])
     with button:
-        if st.button(key=key,label="O"):
+        if st.button(key=key,label=":white_check_mark:"):
             st.session_state.text_question = question
     with text:
         st.write(question)
@@ -365,15 +365,15 @@ with header_column:
 question, submit_question = st.columns([5, 1])
 
 with question:
-    text_question = st.text_input(key="text_question", label='Your question', value="ABC", label_visibility="collapsed")
+    placeholder = st.empty()
 with submit_question:
     st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
 
 with st.expander("Example questions"):
-        exampleQuestion("asd", "ABC")
-        exampleQuestion("dds", "DEF")
-        exampleQuestion("aa", "GHI")
+    for question in st.session_state.selected_configuration["exampleQuestions"]:
+        exampleQuestion(question, question)
 
+text_question = placeholder.text_input(key="text_question", label='Your question', value="ABC", label_visibility="collapsed")
 
 # Select whether showPreconfigured is True or False
 
