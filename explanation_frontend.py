@@ -22,6 +22,8 @@ QB_QANSWER = "QAnswerQueryBuilderAndQueryCandidateFetcher"
 QB_PLATYPUS = "PlatypusQueryBuilder"
 QE_SPARQLEXECUTER = "QE-SparqlQueryExecutedAutomaticallyOnWikidataOrDBpedia"
 QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
+FEEDBACK_BAD = 0
+FEEDBACK_GOOD = 1
 
 QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"#config('QANARY_PIPELINE_URL')
 QANARY_EXPLANATION_SERVICE_URL = "http://demos.swe.htwk-leipzig.de:40190"#config('QANARY_EXPLANATION_SERVICE_URL')
@@ -117,8 +119,6 @@ if 'selected_configuration' not in st.session_state:
     st.session_state.selected_configuration = {}
 if "showPreconfigured" not in st.session_state:
     st.session_state.showPreconfigured = True;
-if 'qaQuestion' not in st.session_state:
-    st.session_state.qaQuestion = "When was Albert Einstein born?";
 
 ###### FUNCTIONS 
 
@@ -228,7 +228,7 @@ def request_explanations(question, gptModel):
 
 ##### definitions for configurations
 
-def showExplanationContainer(component, lang, plainKey): # use the current component instead
+def showExplanationContainer2(component, lang, plainKey): # use the current component instead
     generative = (component["generative"]).strip("\n")
     template = (component["rulebased"]).strip("\n")
     with st.container(border=False):
@@ -259,13 +259,37 @@ def showExplanationContainer(component, lang, plainKey): # use the current compo
     with st.expander("Show used prompt"):   
         code_editor(component["prompt"], lang="text", theme="default", options={"wrap": True})
 
-def feedback_button(key, icon):
+def showExplanationContainer(component, lang, plainKey):
+    generative = (component["generative"]).strip("\n")
+    template = (component["rulebased"]).strip("\n")
+    with st.container(border=False):
+        with st.expander("Dataset"):
+            code_editor(component["dataset"],lang="text", theme="default", options={"wrap": True})
+        with st.expander("Prompt"):
+            code_editor(component["prompt"], lang="text", theme="default", options={"wrap": True})
+        templateCol, generativeCol = st.columns([0.5,0.5])
+        with templateCol:
+            st.markdown(f"""<h3>Template</h3>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="margin-bottom: 25px;">{template}</div>""", unsafe_allow_html=True)
+            placeholder1, col1, col2, placeholder2 = st.columns(4)
+            with col1:
+                feedback_button(plainKey+"template"+"correct",":white_check_mark:", "template", template, FEEDBACK_GOOD)
+            with col2:
+                feedback_button(plainKey+"template"+"wrong",":x:", "template", template, FEEDBACK_BAD)
+        with generativeCol:
+            st.markdown(f"""<h3>Generative</h3>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="margin-bottom: 25px;">{generative}</div>""", unsafe_allow_html=True)
+            placeholder1, col1, col2, placeholder2 = st.columns(4)
+            with col1:
+                feedback_button(plainKey+"generative"+"correct",":white_check_mark:", "generative", generative, FEEDBACK_GOOD)
+            with col2:
+                feedback_button(plainKey+"generative"+"wrong",":x:", "generative", generative, FEEDBACK_BAD)
+
+def feedback_button(key, icon, type, explanation, feedback):
     if st.button(icon, key=key, type="secondary"):
-        send_feedback()
+        send_feedback(explanation=explanation, explanation_type=type, feedback=feedback)
         st.toast(get_random_element(feedback_messages), icon=get_random_element(feedback_icons))
 
-# Needed:
-    # Graph, component, explanation, explanation type, gpt model, shots, feedback
 def send_feedback(explanation, explanation_type, feedback):
     try: 
         response = requests.post(FEEDBACK_URL, json= {
@@ -290,7 +314,7 @@ def show_meta_data():
             st.markdown(f"<p><b>Graph:</b> {st.session_state.currentQaProcessExplanations['meta_information']['graphUri']}</p>", unsafe_allow_html=True)
         with sparqlEndpoint:
             st.write(f"**SPARQL endpoint**: <span class='plainLink'>{QANARY_PIPELINE_URL}/sparql</span>", unsafe_allow_html=True)
-        st.session_state.selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=True, index=0)
+        st.session_state.selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=False, index=0)
 
 def show_explanations():
         if st.session_state.selected_configuration["components"]:
@@ -373,7 +397,7 @@ with st.expander("Example questions"):
     for question in st.session_state.selected_configuration["exampleQuestions"]:
         exampleQuestion(question, question)
 
-text_question = placeholder.text_input(key="text_question", label='Your question', value="ABC", label_visibility="collapsed")
+text_question = placeholder.text_input(key="text_question", label='Your question', value="When was Albert Einstein born?", label_visibility="collapsed")
 
 # Select whether showPreconfigured is True or False
 
