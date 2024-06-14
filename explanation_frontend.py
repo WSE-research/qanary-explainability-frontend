@@ -125,12 +125,15 @@ if "showPreconfigured" not in st.session_state:
 # Fetches the available components from the associated Qanary pipeline
 @st.cache_data
 def request_components_list():
-    response = requests.get(QANARY_PIPELINE_COMPONENTS, headers={"Accept":"application/json"}) # Auslagern der URL
-    data = json.loads(response.text)
-    components = []
-    for key in data:
-        components.append(key["name"])
-    return components
+    try:
+        response = requests.get(QANARY_PIPELINE_COMPONENTS, headers={"Accept":"application/json"}) # Auslagern der URL
+        data = json.loads(response.text)
+        components = []
+        for key in data:
+            components.append(key["name"])
+        return components
+    except Exception as e:
+        raise Exception("Error while fetching the components: " + str(e))
 
 # Executes the Qanary pipeline with the passed components, the gptModel attr is passed to check whether it must be executed or can be taken from the cache
 @st.cache_data
@@ -139,23 +142,31 @@ def execute_qanary_pipeline(question, components, gptModel):
     for component in components:
         component_list += "&componentlist[]=" + component
     custom_pipeline_url = f"{QANARY_PIPELINE_URL}/questionanswering?textquestion=" + question + component_list
-    return requests.post(custom_pipeline_url, {})
+    try:
+        response = requests.post(custom_pipeline_url, {})
+        return response
+    except Exception as e:
+        return e
 
 # Fetches the explanations for the input data
 @st.cache_data
 def input_data_explanation(json):
     input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata"
     response = requests.post(input_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
-    print("Response: " + response.text)
-    return response.text
+    if(response.status_code != 200):
+        raise Exception("Error while fetching the input data explanations: " + response.text)
+    elif(200 <= response.status_code < 300):
+        return response.text
 
 # Fetches the explanations for the output data
 @st.cache_data
 def output_data_explanation(json):
     output_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/outputdata"
     response = requests.post(output_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
-    print("Response: " + response.text)
-    return response.text
+    if(response.status_code != 200):
+        raise Exception("Error while fetching the output data explanations: " + response.text)
+    elif(200 <= response.status_code < 300):
+        return response.text
 
 # Helper function to convert the dict to a array of components # TODO: Needed!?
 def convert_component_dir_to_list(componentDir):
@@ -194,70 +205,44 @@ def request_explanations(question, gptModel):
     st.session_state.explanations_generated = False
     st.session_state.process_active = True
     components = convert_component_dir_to_list(st.session_state.selected_configuration["components"])
-    qa_process_information = execute_qanary_pipeline(question, components, gptModel).json()
-    st.session_state.pipeline_finished = True
-    graph = qa_process_information["outGraph"]
-    json_data = json.dumps({
-    "graphUri": graph,
-    "generativeExplanationRequest": {
-        "shots": gptModels_dic[gptModel][SHOTS_KEY], #Rename gpt models dict as it contains the shots value
-        "gptModel": gptModels_dic[gptModel][MODEL_KEY],
-        "qanaryComponents": components
-    }})
-    
-    input_data_explanations = json.loads(input_data_explanation(json_data))
-    output_data_explanations = json.loads(output_data_explanation(json_data))
+    try:
+        qa_process_information = execute_qanary_pipeline(question, components, gptModel).json()
+        st.session_state.pipeline_finished = True
+        graph = qa_process_information["outGraph"]
+        json_data = json.dumps({
+        "graphUri": graph,
+        "generativeExplanationRequest": {
+            "shots": gptModels_dic[gptModel][SHOTS_KEY], #Rename gpt models dict as it contains the shots value
+            "gptModel": gptModels_dic[gptModel][MODEL_KEY],
+            "qanaryComponents": components
+        }})
+        
+        input_data_explanations = json.loads(input_data_explanation(json_data))
+        output_data_explanations = json.loads(output_data_explanation(json_data))
 
-    currentQaProcessExplanations = {
-        "components": {},
-         "meta_information": {
-            "graphUri": graph,
-            "questionUri": qa_process_information["question"]
-         }
-    }
+        currentQaProcessExplanations = {
+            "components": {},
+            "meta_information": {
+                "graphUri": graph,
+                "questionUri": qa_process_information["question"]
+            }
+        }
 
-    for component in components:
-        input = input_data_explanations["explanationItems"][component]
-        output = output_data_explanations["explanationItems"][component]
-        currentQaProcessExplanations["components"][component] = createExplanationDict(input, output)
+        for component in components:
+            input = input_data_explanations["explanationItems"][component]
+            output = output_data_explanations["explanationItems"][component]
+            currentQaProcessExplanations["components"][component] = createExplanationDict(input, output)
 
-    st.session_state.currentQaProcessExplanations = currentQaProcessExplanations
-    st.session_state.componentsSelection = currentQaProcessExplanations["components"].keys()
-    st.session_state.explanations_generated = True
-
+        st.session_state.currentQaProcessExplanations = currentQaProcessExplanations
+        st.session_state.componentsSelection = currentQaProcessExplanations["components"].keys()
+        st.session_state.explanations_generated = True
+    except Exception as e:
+        logging.error("Error while executing the Qanary pipeline: " + str(e))
+        st.error("Error while executing the Qanary pipeline. Try another configuration or try again later.")
+        st.session_state.pipeline_finished = False
+        st.cache_data.clear()
 
 ##### definitions for configurations
-
-def showExplanationContainer2(component, lang, plainKey, datasetTitle): # use the current component instead
-    generative = (component["generative"]).strip("\n")
-    template = (component["rulebased"]).strip("\n")
-    with st.container(border=False):
-        col1, col2 = st.columns([0.4,0.6])
-        with col1:
-            template_based_container = st.container()
-            with template_based_container:
-                st.markdown(f"""<h3>Template</h3>""", unsafe_allow_html=True)
-                text_template, buttons_template = st.columns([0.85,0.15])
-                with text_template:
-                    st.markdown(f"""<div style="margin-bottom: 25px;">{template}</div>""", unsafe_allow_html=True)
-                with buttons_template:
-                    feedback_button(plainKey+"template"+"correct",":white_check_mark:")
-                    feedback_button(plainKey+"template"+"wrong",":x:")
-            generative_based_container = st.container()
-            with generative_based_container:
-                st.markdown(f"""<h3>Generative</h3>""", unsafe_allow_html=True)
-                text_template, buttons_template = st.columns([0.85,0.15])
-                with text_template:
-                    st.markdown(f"""<div style="margin-bottom: 25px;">{generative}</div>""", unsafe_allow_html=True)
-                with buttons_template:
-                    feedback_button(plainKey+"generative"+"correct",":white_check_mark:")
-                    feedback_button(plainKey+"generative"+"wrong",":x:")
-        with col2:
-            st.markdown("""<h3>{datasetTitle}</h3>""", unsafe_allow_html=True)
-            code_editor(component["dataset"],lang="text", theme="default", options={"wrap": True})
-    st.divider()
-    with st.expander("Show used prompt"):   
-        code_editor(component["prompt"], lang="text", theme="default", options={"wrap": True})
 
 def showExplanationContainer(component, lang, plainKey, datasetTitle):
     generative = (component["generative"]).strip("\n")
@@ -303,6 +288,7 @@ def send_feedback(explanation, explanation_type, feedback):
         })
     except Exception as e:
         logging.error("Feedback wasn't sent: " + str(e))
+        st.error("Feedback wasn't sent. Sorry for the circumstances.")
 
 def show_meta_data():
     if st.session_state.pipeline_finished:
@@ -326,6 +312,14 @@ def show_explanations():
         else:
             st.write("You haven't selected a configuration or individual components")
 
+def exampleQuestion(key, question): 
+    button, text = st.columns([0.05,0.95])
+    with button:
+        if st.button(key=key,label=":white_check_mark:"):
+            st.session_state.text_question = question
+    with text:
+        st.write(question)
+
 ##### Configured
 def pre_configured():
     if st.session_state.pipeline_finished:
@@ -335,7 +329,6 @@ def pre_configured():
         show_explanations()
 
 ##### Not configured
-
 def not_pre_configured():
     components = request_components_list()
     componentsNames = convert_component_dir_to_list(components)
@@ -345,17 +338,11 @@ def not_pre_configured():
 
     st.session_state.selected_configuration["components"] = st.multiselect(label="Select your components in the correct order", label_visibility="hidden",options=componentsNames, key="compSelectionIndividual", placeholder="Choose your desired components")
 
-    if st.session_state.pipeline_finished:
-        st.divider()
-        show_meta_data()
-        st.divider()
-    if st.session_state.explanations_generated:
-        show_explanations()
+    pre_configured()
 
-### Start streamlit app
+### START STREAMLIT APP
 
 st.header('Qanary Explanation Demo')
-
 
 with st.sidebar:
     if st.session_state.showPreconfigured:
@@ -369,22 +356,10 @@ with st.sidebar:
     if not st.session_state.showPreconfigured:
         configButton = st.button("Change configuration", on_click=lambda: switch_view())
 
-def exampleQuestion(key, question): 
-    button, text = st.columns([0.05,0.95])
-    with button:
-        if st.button(key=key,label=":white_check_mark:"):
-            st.session_state.text_question = question
-    with text:
-        st.write(question)
-
-
-### Header
-
 header_column, button_column = st.columns(2)
 
 with header_column:
     st.subheader("Enter a question")
-#    st.write(f'<span style="font-size: 1.1rem;">{st.session_state.selected_configuration["exampleQuestions"]}</span>', unsafe_allow_html=True)
 
 question, submit_question = st.columns([5, 1])
 
@@ -393,9 +368,10 @@ with question:
 with submit_question:
     st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
 
-with st.expander("Example questions"):
-    for question in st.session_state.selected_configuration["exampleQuestions"]:
-        exampleQuestion(question, question)
+if st.session_state.showPreconfigured:    
+    with st.expander("Example questions"):
+        for question in st.session_state.selected_configuration["exampleQuestions"]:
+            exampleQuestion(question, question)
 
 text_question = placeholder.text_input(key="text_question", label='Your question', value="When was Albert Einstein born?", label_visibility="collapsed")
 
