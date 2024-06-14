@@ -117,6 +117,8 @@ if 'selected_configuration' not in st.session_state:
     st.session_state.selected_configuration = {}
 if "showPreconfigured" not in st.session_state:
     st.session_state.showPreconfigured = True;
+if 'qaQuestion' not in st.session_state:
+    st.session_state.qaQuestion = "When was Albert Einstein born?";
 
 ###### FUNCTIONS 
 
@@ -343,6 +345,15 @@ with st.sidebar:
     if not st.session_state.showPreconfigured:
         configButton = st.button("Change configuration", on_click=lambda: switch_view())
 
+def exampleQuestion(key, question): 
+    button, text = st.columns([0.05,0.95])
+    with button:
+        if st.button(key=key,label="O"):
+            st.session_state.text_question = question
+    with text:
+        st.write(question)
+
+
 ### Header
 
 header_column, button_column = st.columns(2)
@@ -354,14 +365,15 @@ with header_column:
 question, submit_question = st.columns([5, 1])
 
 with question:
-    text_question = st.text_input('Your question', 'When was Albert Einstein born?', label_visibility="collapsed")
+    text_question = st.text_input(key="text_question", label='Your question', value="ABC", label_visibility="collapsed")
 with submit_question:
     st.button('Send', on_click=lambda: request_explanations(text_question, gptModel))
 
 with st.expander("Example questions"):
-    code_editor("Question 1", buttons=[{"name": "Copy","hasText": True, "alwaysOn": True, "style": {"top": "0.46rem", "right": "0.4rem"}}])
-    code_editor("Question 2", buttons=[{"name": "Copy","hasText": True, "alwaysOn": True, "style": {"top": "0.46rem", "right": "0.4rem"}}])    
-    code_editor("Question 3", buttons=[{"name": "Copy","hasText": True, "alwaysOn": True, "style": {"top": "0.46rem", "right": "0.4rem"}}])
+        exampleQuestion("asd", "ABC")
+        exampleQuestion("dds", "DEF")
+        exampleQuestion("aa", "GHI")
+
 
 # Select whether showPreconfigured is True or False
 
