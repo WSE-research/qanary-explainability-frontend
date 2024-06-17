@@ -64,17 +64,17 @@ GPT4 = "GPT-4 (from OpenAI)"
 GPT4_MODEL = "GPT_4"
 MODEL_KEY = "model"
 SHOTS_KEY = "shots"
-SEPARATOR = """, shots: """
+SHOT = "-shot"
 ONESHOT = "1"  # "One-shot"
 TWOSHOT = "2"
 THREESHOT = "3"
 GPT_MODEL_HELP = "The examples for the prompts are generated randomly by executing several QA processes with Qanary. The selection of the Annotation-Type and Component for these examples are automated to reduce complexity."
 
 ### MODEL MAPPINGS
-GPT3_5_ONE_SHOT = GPT3_5_TURBO + SEPARATOR + ONESHOT
-GPT3_5_TWO_SHOT = GPT3_5_TURBO + SEPARATOR + TWOSHOT
-GPT3_5_THREE_SHOT = GPT3_5_TURBO + SEPARATOR + THREESHOT
-GPT4_ONE_SHOT = GPT4 + SEPARATOR + ONESHOT + ":star:"
+GPT3_5_ONE_SHOT = GPT3_5_TURBO + ", " + ONESHOT + SHOT
+GPT3_5_TWO_SHOT = GPT3_5_TURBO + ", " + TWOSHOT + SHOT
+GPT3_5_THREE_SHOT = GPT3_5_TURBO + "," + THREESHOT + SHOT
+GPT4_ONE_SHOT = GPT4 + ", " + ONESHOT + SHOT + ":star:"
 
 ### Selectable GPT models
 gptModels_dic = {
@@ -300,7 +300,7 @@ def show_meta_data():
             st.markdown(f"<p><b>Graph:</b> {st.session_state.currentQaProcessExplanations['meta_information']['graphUri']}</p>", unsafe_allow_html=True)
         with sparqlEndpoint:
             st.write(f"**SPARQL endpoint**: <span class='plainLink'>{QANARY_PIPELINE_URL}/sparql</span>", unsafe_allow_html=True)
-        st.session_state.selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=False, index=0)
+        st.session_state.selected_component = containerPipelineAndComponentsRadio.radio('', st.session_state["componentsSelection"], horizontal=True, index=0)
 
 def show_explanations():
         if st.session_state.selected_configuration["components"]:
@@ -313,9 +313,9 @@ def show_explanations():
             st.write("You haven't selected a configuration or individual components")
 
 def exampleQuestion(key, question): 
-    button, text = st.columns([0.05,0.95])
+    button, text = st.columns([0.04,0.96])
     with button:
-        if st.button(key=key,label=":white_check_mark:"):
+        if st.button(key=key,label=":heavy_plus_sign:"):
             st.session_state.text_question = question
     with text:
         st.write(question)
