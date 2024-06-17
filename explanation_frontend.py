@@ -24,11 +24,11 @@ QBE_QANSWER = "QAnswerQueryBuilderAndExecutor"
 FEEDBACK_BAD = 0
 FEEDBACK_GOOD = 1
 
-QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"#config('QANARY_PIPELINE_URL')
-QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000"#config('QANARY_EXPLANATION_SERVICE_URL')
-QANARY_PIPELINE_COMPONENTS = "http://demos.swe.htwk-leipzig.de:40111/components"#config('QANARY_PIPELINE_COMPONENTS')
-GITHUB_REPO = "https://github.com/WSE-research/qanary-explanainability-frontend"#config('GITHUB_REPO')
-FEEDBACK_URL = "" #config('FEEDBACK_URL')
+QANARY_PIPELINE_URL = config('QANARY_PIPELINE_URL')
+QANARY_EXPLANATION_SERVICE_URL = config('QANARY_EXPLANATION_SERVICE_URL')
+QANARY_PIPELINE_COMPONENTS = config('QANARY_PIPELINE_COMPONENTS')
+GITHUB_REPO = config('GITHUB_REPO')
+FEEDBACK_URL = config('FEEDBACK_URL')
 
 ### Pre-defined configurations
 explanation_configurations_dict = {
