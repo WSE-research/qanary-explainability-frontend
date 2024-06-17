@@ -3,7 +3,6 @@ import streamlit as st
 from streamlit.components.v1 import html
 import requests
 import json
-from rdflib import Namespace
 from util import include_css, get_random_element, feedback_messages, feedback_icons
 from code_editor import code_editor
 import pandas as pd
@@ -26,12 +25,10 @@ FEEDBACK_BAD = 0
 FEEDBACK_GOOD = 1
 
 QANARY_PIPELINE_URL = "http://demos.swe.htwk-leipzig.de:40111"#config('QANARY_PIPELINE_URL')
-QANARY_EXPLANATION_SERVICE_URL = "http://demos.swe.htwk-leipzig.de:40190"#config('QANARY_EXPLANATION_SERVICE_URL')
+QANARY_EXPLANATION_SERVICE_URL = "http://localhost:4000"#config('QANARY_EXPLANATION_SERVICE_URL')
 QANARY_PIPELINE_COMPONENTS = "http://demos.swe.htwk-leipzig.de:40111/components"#config('QANARY_PIPELINE_COMPONENTS')
 GITHUB_REPO = "https://github.com/WSE-research/qanary-explanainability-frontend"#config('GITHUB_REPO')
 FEEDBACK_URL = "" #config('FEEDBACK_URL')
-
-explanationsNs = Namespace("urn:qanary:explanations#")
 
 ### Pre-defined configurations
 explanation_configurations_dict = {
@@ -65,19 +62,27 @@ GPT4_MODEL = "GPT_4"
 MODEL_KEY = "model"
 SHOTS_KEY = "shots"
 SHOT = "-shot"
+ZEROSHOT = "0"
 ONESHOT = "1"  # "One-shot"
 TWOSHOT = "2"
 THREESHOT = "3"
 GPT_MODEL_HELP = "The examples for the prompts are generated randomly by executing several QA processes with Qanary. The selection of the Annotation-Type and Component for these examples are automated to reduce complexity."
 
 ### MODEL MAPPINGS
+GPT_3_5_ZERO_SHOT = GPT3_5_TURBO + ", " + ZEROSHOT + SHOT
 GPT3_5_ONE_SHOT = GPT3_5_TURBO + ", " + ONESHOT + SHOT
 GPT3_5_TWO_SHOT = GPT3_5_TURBO + ", " + TWOSHOT + SHOT
 GPT3_5_THREE_SHOT = GPT3_5_TURBO + "," + THREESHOT + SHOT
+GPT4_ZERO_SHOT = GPT4 + ", " + ZEROSHOT + SHOT
 GPT4_ONE_SHOT = GPT4 + ", " + ONESHOT + SHOT + ":star:"
 
 ### Selectable GPT models
 gptModels_dic = {
+    GPT_3_5_ZERO_SHOT: {
+        MODEL_KEY: GPT3_5_MODEL,
+        SHOTS_KEY: 0,
+        CONCRETE_MODEL: GPT3_5_CONCRETE
+    },    
     GPT3_5_ONE_SHOT: {
         MODEL_KEY: GPT3_5_MODEL,
         SHOTS_KEY: 1,
@@ -93,11 +98,17 @@ gptModels_dic = {
         SHOTS_KEY: 3,
         CONCRETE_MODEL: GPT3_5_CONCRETE
     },
+    GPT4_ZERO_SHOT: {
+        MODEL_KEY: GPT4_MODEL,
+        SHOTS_KEY: 0,
+        CONCRETE_MODEL: GPT4_CONCRETE
+    },
     GPT4_ONE_SHOT: {
         MODEL_KEY: GPT4_MODEL,
         SHOTS_KEY: 1,
         CONCRETE_MODEL: GPT4_CONCRETE
     }
+
 }
 gptModels = gptModels_dic.keys()
 concrete_models = [value[CONCRETE_MODEL] for value in gptModels_dic.values()]
@@ -153,10 +164,10 @@ def execute_qanary_pipeline(question, components, gptModel):
 def input_data_explanation(json):
     input_explanation_url = f"{QANARY_EXPLANATION_SERVICE_URL}/composedexplanations/inputdata"
     response = requests.post(input_explanation_url, json, headers={"Accept":"application/json","Content-Type":"application/json"})
-    if(response.status_code != 200):
-        raise Exception("Error while fetching the input data explanations: " + response.text)
-    elif(200 <= response.status_code < 300):
+    if(200 <= response.status_code < 300):
         return response.text
+    else:
+        raise Exception("Error while fetching the input data explanations: " + response.text)
 
 # Fetches the explanations for the output data
 @st.cache_data
@@ -350,7 +361,7 @@ with st.sidebar:
         configuration = st.radio(label='Select a configuration:',options=explanation_configurations, index=0, label_visibility="collapsed")
         st.session_state.selected_configuration = explanation_configurations_dict[configuration] # Make it a session state
         configButton = st.button("Change configuration", on_click=lambda: switch_view())
-    st.subheader('GPT Model', help="Select a GPT model to generate the generative explanation.")
+    st.subheader('GPT Model', help="Select a GPT model to generate the generative explanation. Please note that an explanation with more shots will take longer to generate.")
     gptModel = st.radio('What GPT model should create the generative explanation?', label_visibility="collapsed", options=gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
     selected_gptModel = gptModels_dic[gptModel]
     if not st.session_state.showPreconfigured:
