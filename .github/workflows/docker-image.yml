@@ -17,7 +17,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       run: echo ${{ github.ref_name }} > VERSION.txt
     - name: Echo
-      run: echo ${{ github.workspace }}
+      run: ls ${{ github.workspace }}
     - name: Build the Docker image for temporary use only
       if: ${{ ! startsWith(github.ref, 'refs/tags/') }}
       run: docker build . --file Dockerfile --tag tmp:latest
