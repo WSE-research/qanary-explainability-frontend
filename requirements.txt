@@ -2,3 +2,4 @@ streamlit==1.31.1
 streamlit_code_editor==0.1.0
 extra_streamlit_components==0.1.70
 python-decouple===3.8
+pymongo===4.7.3
