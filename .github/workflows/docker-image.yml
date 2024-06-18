@@ -10,7 +10,6 @@ jobs:
       MONGO_USER: ${{ secrets.USER_MONGO }}
       MONGO_PASSWORD: ${{ secrets.PASSWORD_MONGO }}
       MONGO_AUTHSOURCE: ${{ secrets.AUTHSOURCE_MONGO }}
-      GITHUB_WORKSPACE: ${{github.workspace}}
     
     steps:
     - uses: actions/checkout@v4

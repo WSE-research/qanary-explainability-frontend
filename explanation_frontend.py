@@ -30,6 +30,9 @@ QANARY_EXPLANATION_SERVICE_URL = config('QANARY_EXPLANATION_SERVICE_URL')
 QANARY_PIPELINE_COMPONENTS = config('QANARY_PIPELINE_COMPONENTS')
 GITHUB_REPO = config('GITHUB_REPO')
 FEEDBACK_URL = config('FEEDBACK_URL')
+MONGO_USER = config('MONGO_USER')
+MONGO_PASSWORD = config('MONGO_PASSWORD')
+MONGO_AUTHSOURCE = config('MONGO_AUTHSOURCE')
 
 ### Pre-defined configurations
 explanation_configurations_dict = {
@@ -132,10 +135,10 @@ if 'selected_configuration' not in st.session_state:
 if "showPreconfigured" not in st.session_state:
     st.session_state.showPreconfigured = True;
 
-mongo_client = pymongo.MongoClient(config('FEEDBACK_URL'),
-    username=config('MONGO_USER'),
-    password=config('MONGO_PASSWORD'),
-    authSource=config('MONGO_AUTHSOURCE'),
+mongo_client = pymongo.MongoClient(FEEDBACK_URL,
+    username=MONGO_USER,
+    password=MONGO_PASSWORD,
+    authSource=MONGO_AUTHSOURCE,
 )
 explanationsDb = mongo_client["explanations"]
 explanationsCol = explanationsDb["explanation"]
