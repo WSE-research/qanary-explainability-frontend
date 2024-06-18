@@ -7,6 +7,7 @@ from util import include_css, get_random_element, feedback_messages, feedback_ic
 from code_editor import code_editor
 import pandas as pd
 from decouple import config
+import pymongo
 
 st.set_page_config(layout="wide")
 include_css(st, ["css/style_github_ribbon.css"])
@@ -130,6 +131,14 @@ if 'selected_configuration' not in st.session_state:
     st.session_state.selected_configuration = {}
 if "showPreconfigured" not in st.session_state:
     st.session_state.showPreconfigured = True;
+
+mongo_client = pymongo.MongoClient(config('FEEDBACK_URL'),
+    username=config('MONGO_USER'),
+    password=config('MONGO_PASSWORD'),
+    authSource=config('MONGO_AUTHSOURCE'),
+)
+explanationsDb = mongo_client["explanations"]
+explanationsCol = explanationsDb["explanation"]
 
 ###### FUNCTIONS 
 
@@ -269,34 +278,36 @@ def showExplanationContainer(component, lang, plainKey, datasetTitle):
             st.markdown(f"""<div style="margin-bottom: 25px;">{template}</div>""", unsafe_allow_html=True)
             placeholder1, col1, col2, placeholder2 = st.columns(4)
             with col1:
-                feedback_button(plainKey+"template"+"correct",":white_check_mark:", "template", template, FEEDBACK_GOOD)
+                feedback_button(plainKey+"template"+"correct",":white_check_mark:", "template", template, plainKey, FEEDBACK_GOOD)
             with col2:
-                feedback_button(plainKey+"template"+"wrong",":x:", "template", template, FEEDBACK_BAD)
+                feedback_button(plainKey+"template"+"wrong",":x:", "template", template, plainKey, FEEDBACK_BAD)
         with generativeCol:
             st.markdown(f"""<h3>Generative</h3>""", unsafe_allow_html=True)
             st.markdown(f"""<div style="margin-bottom: 25px;">{generative}</div>""", unsafe_allow_html=True)
             placeholder1, col1, col2, placeholder2 = st.columns(4)
             with col1:
-                feedback_button(plainKey+"generative"+"correct",":white_check_mark:", "generative", generative, FEEDBACK_GOOD)
+                feedback_button(plainKey+"generative"+"correct",":white_check_mark:", "generative", generative, plainKey, FEEDBACK_GOOD)
             with col2:
-                feedback_button(plainKey+"generative"+"wrong",":x:", "generative", generative, FEEDBACK_BAD)
+                feedback_button(plainKey+"generative"+"wrong",":x:", "generative", generative, plainKey, FEEDBACK_BAD)
 
-def feedback_button(key, icon, type, explanation, feedback):
+def feedback_button(key, icon, type, explanation, datatype, feedback):
     if st.button(icon, key=key, type="secondary"):
-        send_feedback(explanation=explanation, explanation_type=type, feedback=feedback)
+        send_feedback(explanation=explanation, explanation_type=type, datatype=datatype, feedback=feedback)
         st.toast(get_random_element(feedback_messages), icon=get_random_element(feedback_icons))
 
-def send_feedback(explanation, explanation_type, feedback):
-    try: 
-        response = requests.post(FEEDBACK_URL, json= {
+def send_feedback(explanation, explanation_type, datatype, feedback):
+    json= {
             "graph": st.session_state.currentQaProcessExplanations["meta_information"]["graphUri"],
             "component": st.session_state.selected_component,
             "explanation": explanation,
             "explanation_type": explanation_type,
+            "datatype": datatype,
             "gpt_model": st.session_state.selected_gptModel["concrete_model"],
             "shots": st.session_state.selected_gptModel["shots"],
             "feedback": feedback
-        })
+        }
+    try: 
+        response = explanationsCol.insert_one(json)
     except Exception as e:
         logging.error("Feedback wasn't sent: " + str(e))
         st.error("Feedback wasn't sent. Sorry for the circumstances.")

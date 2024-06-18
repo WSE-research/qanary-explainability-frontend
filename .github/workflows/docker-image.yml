@@ -2,6 +2,12 @@ name: Docker Image CI
 
 on: push
 
+env:
+  FEEDBACK_URL: ${{ secrets.URL_MONGO }}
+  MONGO_USER: ${{ secrets.USER_MONGO }}
+  MONGO_PASSWORD: ${{ secrets.PASSWORD_MONGO }}
+  MONGO_AUTHSOURCE: ${{ secrets.AUTHSOURCE_MONGO }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,6 +19,8 @@ jobs:
     - name: Build the Docker image for temporary use only
       if: ${{ ! startsWith(github.ref, 'refs/tags/') }}
       run: docker build . --file Dockerfile --tag tmp:latest
+    - name: Replace env with secrets
+      run: wseresearch/ actions-replace-env-variables:v0.1.4
     - name: Build the Docker image for tag release
       if: startsWith(github.ref, 'refs/tags/')
       run: docker build . --file Dockerfile --tag ${{ secrets.DOCKER_IMAGE_NAME }}:latest
