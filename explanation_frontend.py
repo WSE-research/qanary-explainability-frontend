@@ -305,7 +305,7 @@ def send_feedback(explanation, explanation_type, datatype, feedback):
             "explanation": explanation,
             "explanation_type": explanation_type,
             "datatype": datatype,
-            "gpt_model": st.session_state.selected_gptModel["concrete_model"][MODEL_KEY],
+            "gpt_model": st.session_state.selected_gptModel["model"],
             "shots": st.session_state.selected_gptModel["shots"],
             "feedback": feedback
         }
