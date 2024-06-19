@@ -305,7 +305,7 @@ def send_feedback(explanation, explanation_type, datatype, feedback):
             "explanation": explanation,
             "explanation_type": explanation_type,
             "datatype": datatype,
-            "gpt_model": st.session_state.selected_gptModel["concrete_model"],
+            "gpt_model": st.session_state.selected_gptModel["model"],
             "shots": st.session_state.selected_gptModel["shots"],
             "feedback": feedback
         }
@@ -377,7 +377,7 @@ with st.sidebar:
         configButton = st.button("Change configuration", on_click=lambda: switch_view())
     st.subheader('GPT Model', help="Select a GPT model to generate the generative explanation. Please note that an explanation with more shots will take longer to generate.")
     gptModel = st.radio('What GPT model should create the generative explanation?', label_visibility="collapsed", options=gptModels, index=0, help=GPT_MODEL_HELP, captions=concrete_models)
-    selected_gptModel = gptModels_dic[gptModel]
+    st.session_state.selected_gptModel = gptModels_dic[gptModel]
     if not st.session_state.showPreconfigured:
         configButton = st.button("Change configuration", on_click=lambda: switch_view())
 
