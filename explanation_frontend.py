@@ -174,6 +174,7 @@ def execute_qanary_pipeline(question, components, gptModel):
         response = requests.post(custom_pipeline_url, {})
         return response
     except Exception as e:
+        st.toast("The qanary pipeline threw an error. Please try again later or select another configuration.")
         return e
 
 # Fetches the explanations for the input data
@@ -266,7 +267,7 @@ def request_explanations(question, gptModel):
         st.session_state.explanations_generated = True
     except Exception as e:
         logging.error("Error while executing the Qanary pipeline: " + str(e))
-        st.error("Error while executing the Qanary pipeline. Try another configuration or try again later.")
+        st.toast("Error while executing the explanation workflow with error: " + str(e))
         st.session_state.pipeline_finished = False
         st.cache_data.clear()
 
@@ -317,6 +318,7 @@ def send_feedback(explanation, explanation_type, datatype, feedback):
     try: 
         response = explanationsCol.insert_one(json)
     except Exception as e:
+        st.toast("Feedback wasn't sent. Sorry for the circumstances.")
         logging.error("Feedback wasn't sent: " + str(e))
         st.error("Feedback wasn't sent. Sorry for the circumstances.")
 
