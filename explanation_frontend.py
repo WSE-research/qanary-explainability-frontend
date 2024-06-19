@@ -44,16 +44,21 @@ explanation_configurations_dict = {
             "What is the birth date of Jesus Christ?",
         ]
     },
-    "Configuration 2": {
-        "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER],
-        "exampleQuestions": ""
-    },
-    "Configuration 3": {
-        "components": [],
-        "exampleQuestions": ""
-    }
+#    "Configuration 2": {
+#        "components": [NED_DBPEDIA, KG2KG, QB_BIRTHDATA, QE_SPARQLEXECUTER],
+#        "exampleQuestions": ""
+#    },
+#    "Configuration 3": {
+#        "components": [],
+#        "exampleQuestions": ""
+#    }
 }
 explanation_configurations = explanation_configurations_dict.keys()
+explanation_configurations_captions = [
+    "Komponenten: " + NED_DBPEDIA + ", " + KG2KG + ", " + QB_BIRTHDATA + ", " + QE_SPARQLEXECUTER#,
+#    "", 
+#    ""
+]
 
 ### Constants
 GPT3_5_TURBO = "GPT-3.5 (from OpenAI)"
