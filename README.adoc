@@ -1,1 +1,87 @@
+:toc:
+:toclevels: 5
+:toc-placement!:
+:source-highlighter: highlight.js
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+:github-repository: https://github.com/WSE-research/qanary-explainability-frontend
+endif::[]
 
+= Qanary Explainability Demo
+
+Explanations are of crucial importance in enhancing not only but primarily both, the trustworthiness of a wide range of systems and the traceability of responses. 
+With the ever-increasing complexity of software as well as the recent and fast progress in artificial intelligence (AI), systems become more and more opaque to both, the user and the developer. 
+For both parties, such black-box systems are problematic. Therefore, in particular, in the area of AI, explainability plays an increasingly important role. 
+
+In this demo, we present an approach for post-hoc explainability within component-based AI-enhanced software systems, i.e. the explainability of the behavior of components in general (not limited to AI models). To do this, we rely on the system's data that was processed and/or is reflecting the intermediate processing steps. Accordingly, (post-hoc) explanations are created for each component, regardless of whether or not it is a black-box component. 
+
+The demo is based on any Qanary system and built with Python using the Streamlit library.
+
+---
+
+toc::[]
+
+== Online Demo
+
+This demo is available at https://wse-research.org/qanary-explanations
+
+== Building and running the application
+
+=== Running locally with Python
+
+==== Install dependencies
+
+[source, bash]
+----
+pip install -r requirements.txt
+----
+
+Note: If you are using a virtual environment, make sure to activate it before running the command.
+
+==== Run the Application
+
+[source, bash]
+----
+python -m streamlit run qanary-explainability-frontend.py --server.port=8501
+----
+
+After that, you can access the application at http://localhost:8501.
+
+=== Running with Docker
+
+The application is available at https://hub.docker.com/r/wseresearch/qanary-explainability-frontend[Dockerhub] for free use in your environment.
+
+==== Build Docker Image
+
+[source, bash]
+----
+docker build -t qanary-explainability-frontend:latest . 
+----
+
+
+==== Run Docker Image
+
+[source, bash]
+----
+docker run --rm -p 8501:8501 --name qanary-explainability-frontend --env-file=service_config/files/env qanary-explainability-frontend:latest
+----
+
+Now, you can access the application at http://localhost:8501.
+
+== Cite
+
+To be done
+
+== Contribute
+
+We are happy to receive your contributions. 
+Please create a pull request or an {github-repository}/issues/new[issue].
+As this tool is published under the {github-repository}/blob/main/LICENSE[MIT license], feel free to {github-repository}/fork[fork] it and use it in your own projects.
+
+== Disclaimer
+
+This tool is provided "as is" and without any warranty, express or implied.
