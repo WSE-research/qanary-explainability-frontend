@@ -1,5 +1,5 @@
-streamlit==1.65.0
+streamlit==1.66.0
 streamlit_code_editor==0.1.22
 extra_streamlit_components==0.1.81
 python-decouple===3.8
-pymongo===4.18.3
+pymongo===4.19.0
